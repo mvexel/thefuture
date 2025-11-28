@@ -1447,5 +1447,163 @@ class TestThemeValidation(unittest.TestCase):
             self.assertFalse(result)
 
 
+# Iteration 10 Tests
+class TestWebFrontend(unittest.TestCase):
+    """Tests for web frontend functionality (Iteration 10)."""
+
+    def test_static_files_exist(self):
+        """Static files for web frontend should exist."""
+        from pathlib import Path
+        static_dir = Path(__file__).parent / "static"
+        
+        self.assertTrue(static_dir.exists(), "static directory should exist")
+        self.assertTrue((static_dir / "index.html").exists(), "index.html should exist")
+        self.assertTrue((static_dir / "style.css").exists(), "style.css should exist")
+        self.assertTrue((static_dir / "app.js").exists(), "app.js should exist")
+
+    def test_api_has_web_frontend_endpoint(self):
+        """API should have /app endpoint for web frontend."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [route.path for route in api.routes]
+            self.assertIn("/app", routes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+    def test_api_has_static_mount(self):
+        """API should mount static files."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [route.path for route in api.routes]
+            # StaticFiles mount creates a route at /static
+            self.assertIn("/static", routes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+
+class TestAPIRemindersEndpoints(unittest.TestCase):
+    """Tests for API reminder endpoints (Iteration 10)."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_api_has_reminders_get_endpoint(self):
+        """API should have GET /reminders endpoint."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [route.path for route in api.routes]
+            self.assertIn("/reminders", routes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+    def test_api_has_reminders_post_endpoint(self):
+        """API should have POST /reminders endpoint."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [(route.path, route.methods) for route in api.routes if hasattr(route, 'methods')]
+            post_routes = [path for path, methods in routes if path == "/reminders" and "POST" in methods]
+            self.assertEqual(len(post_routes), 1)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+    def test_api_has_acknowledge_endpoint(self):
+        """API should have POST /reminders/{id}/acknowledge endpoint."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [route.path for route in api.routes]
+            self.assertIn("/reminders/{reminder_id}/acknowledge", routes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+
+class TestAPIFeedbackEndpoint(unittest.TestCase):
+    """Tests for API feedback endpoint (Iteration 10)."""
+
+    def test_api_has_feedback_endpoint(self):
+        """API should have POST /feedback endpoint."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [(route.path, route.methods) for route in api.routes if hasattr(route, 'methods')]
+            post_routes = [path for path, methods in routes if path == "/feedback" and "POST" in methods]
+            self.assertEqual(len(post_routes), 1)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+
+class TestAPIThemesEndpoint(unittest.TestCase):
+    """Tests for enhanced themes endpoint (Iteration 10)."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_themes_endpoint_includes_custom_themes(self, mock_dir, mock_file):
+        """Themes endpoint should include custom themes."""
+        from app import save_custom_themes, create_api
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        try:
+            with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+                 patch("app.HISTORY_DIR", Path(self.temp_dir)):
+                # Create a custom theme
+                custom = {
+                    "my_custom_theme": {
+                        "custom_cat": ["Custom prediction"]
+                    }
+                }
+                save_custom_themes(custom)
+                
+                # Create API - it should use get_all_themes internally
+                from app import get_all_themes
+                all_themes = get_all_themes()
+                
+                self.assertIn("my_custom_theme", all_themes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+
+class TestIteration10Integration(unittest.TestCase):
+    """Integration tests for Iteration 10 features."""
+
+    def test_version_updated(self):
+        """Version should be updated to Iteration 10."""
+        from app import create_api
+        try:
+            api = create_api()
+            self.assertEqual(api.version, "Iteration 10")
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+    def test_health_check_returns_iteration_10(self):
+        """Health check should return Iteration 10."""
+        from app import create_api
+        try:
+            from fastapi.testclient import TestClient
+            api = create_api()
+            client = TestClient(api)
+            response = client.get("/")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["version"], "Iteration 10")
+        except (ImportError, RuntimeError):
+            self.skipTest("FastAPI, Starlette, or httpx not installed")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,7 +2,7 @@
 
 This file is intended for the next agent to pick up and continue the work.
 
-## Current State (After Iteration 9)
+## Current State (After Iteration 10)
 The Future Predictor now has:
 - Full CLI argument support (category, count, json, quiet, history, no-save)
 - 7 prediction categories: fortune, weather, activity, career, relationship, health, creative
@@ -50,7 +50,7 @@ The Future Predictor now has:
   - `--clear-reminders` to clear reminders
   - Reminders stored in `~/.thefuture/reminders.json`
   - Automatic display of due reminders on app startup
-- **NEW: Custom Themes** (Iteration 9)
+- Custom Themes (Iteration 9)
   - `--add-theme` to create custom themes interactively
   - `--list-themes` to show all built-in and custom themes
   - `--delete-theme NAME` to delete a custom theme
@@ -58,50 +58,71 @@ The Future Predictor now has:
   - `--export-theme NAME` to export any theme to JSON
   - Custom themes stored in `~/.thefuture/themes.json`
   - `--theme` now accepts any theme name (built-in or custom)
-- 98 passing unit tests
+- **NEW: Web Frontend** (Iteration 10)
+  - Beautiful dark-themed web UI at http://localhost:8000/app
+  - Interactive prediction generation with all options
+  - History viewer with filtering and inline rating
+  - Stats dashboard with visual category breakdown
+  - Themes browser to explore and select themes
+  - Reminders management interface
+  - Social sharing with copy to clipboard
+- **NEW: Enhanced API Endpoints** (Iteration 10)
+  - `GET /reminders` - List reminders
+  - `POST /reminders` - Create a new reminder
+  - `POST /reminders/{id}/acknowledge` - Acknowledge a reminder
+  - `POST /feedback` - Rate a prediction
+- 108 passing unit tests
 
-## Suggested Tasks for Iteration 10
+## Suggested Tasks for Iteration 11
 
-### Priority 1: Web Frontend
-- Simple HTML/CSS frontend for the API
-- Interactive prediction generation
-- History visualization with charts
-- Stats dashboard
-- Theme browser and creator
-
-### Priority 2: Natural Language Processing
-- Accept free-form prediction requests
-- Parse and map to appropriate categories
+### Priority 1: Natural Language Processing
+- Accept free-form prediction requests like "Give me a fortune about love"
+- Parse and map to appropriate categories/themes
 - Generate more personalized predictions
 
-### Priority 3: API Enhancements
-- Add reminder endpoints to the API
-- Add custom theme endpoints to the API
-- Rate limiting and authentication for API
-- System notifications for reminders
+### Priority 2: API Authentication & Rate Limiting
+- Add optional API key authentication
+- Rate limiting to prevent abuse
+- User accounts for personalized experience
 
-### Priority 4: Theme Sharing
+### Priority 3: Theme Sharing
 - Upload custom themes to a community repository
 - Browse and download themes from others
 - Theme ratings and reviews
 
+### Priority 4: System Notifications
+- Desktop notifications for reminders
+- Integration with OS notification systems
+- Optional email reminders
+
+### Priority 5: Web UI Enhancements
+- Custom theme creation wizard in web UI
+- Dark/light theme toggle
+- Mobile-responsive improvements
+- Prediction history charts over time
+
 ## How to Continue
 1. Read AGENTS.md for the full iteration history
 2. Run `python app.py --help` to see current options
-3. Run `python -m unittest test_app -v` to verify tests pass (98 tests)
+3. Run `python -m unittest test_app -v` to verify tests pass (108 tests)
 4. Start the API with `python app.py --api` (requires FastAPI/uvicorn)
-5. Access API docs at http://localhost:8000/docs
-6. Try custom themes:
-   - `python app.py --list-themes` to see available themes
-   - `python app.py --add-theme` to create a custom theme
-   - `python app.py --export-theme zodiac > zodiac.json` to export a theme
-   - `python app.py --import-theme custom.json` to import a theme
-7. Implement changes incrementally
-8. Update AGENTS.md with your iteration notes
-9. Create/update this file for the next agent
+5. Access web frontend at http://localhost:8000/app
+6. Access API docs at http://localhost:8000/docs
+7. Try the web interface:
+   - Generate predictions with different themes and categories
+   - View and rate history
+   - Check stats dashboard
+   - Browse available themes
+   - Create and manage reminders
+8. Implement changes incrementally
+9. Update AGENTS.md with your iteration notes
+10. Create/update this file for the next agent
 
 ## Files to Modify
 - `app.py` - Main application code
 - `test_app.py` - Unit tests
+- `static/index.html` - Web frontend HTML
+- `static/style.css` - Web frontend styles
+- `static/app.js` - Web frontend JavaScript
 - `AGENTS.md` - Iteration documentation
-- `NEXT_ITERATION.md` - Update for iteration 11
+- `NEXT_ITERATION.md` - Update for iteration 12
