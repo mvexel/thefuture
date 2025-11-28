@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-The Future Predictor - Iteration 5
+The Future Predictor - Iteration 6
 
 A playful prediction system that generates fortunes and predictions.
-This iteration adds smart mode (combined time-aware + preferences) and social sharing.
+This iteration adds prediction themes and copy to clipboard functionality.
 """
 
 import argparse
@@ -122,9 +122,228 @@ PREDICTIONS = {
     ],
 }
 
+# Themed predictions - special prediction sets for different occasions
+THEMES = {
+    "motivational": {
+        "fortune": [
+            "Your potential is limitless—today is proof of that.",
+            "Every step forward, no matter how small, is progress.",
+            "You have the strength to overcome any challenge.",
+            "Believe in yourself—others already do.",
+            "Your persistence will lead to breakthrough success.",
+        ],
+        "career": [
+            "Your dedication will open doors you never imagined.",
+            "A mentor will recognize your unique talents soon.",
+            "Your next big opportunity is just around the corner.",
+            "Leadership qualities are emerging in you—embrace them.",
+            "Your work ethic inspires those around you.",
+        ],
+        "health": [
+            "Every healthy choice builds a stronger you.",
+            "Your body is capable of amazing things—trust it.",
+            "Small consistent habits create lasting transformation.",
+            "You deserve to feel your best—make it happen.",
+            "Energy follows intention—set yours high.",
+        ],
+        "creative": [
+            "Your creativity knows no bounds—let it flow.",
+            "The world needs your unique vision—share it.",
+            "Every creation starts with a single inspired thought.",
+            "Your artistic voice is valuable and worth hearing.",
+            "Innovation comes naturally to those who dare to try.",
+        ],
+    },
+    "holiday": {
+        "fortune": [
+            "The holiday season will bring unexpected joy and warmth.",
+            "A gathering will create memories to last a lifetime.",
+            "Generosity given will return to you tenfold.",
+            "The spirit of the season will touch your heart.",
+            "A meaningful gift will come from an unexpected source.",
+        ],
+        "relationship": [
+            "Reconnecting with loved ones will bring deep happiness.",
+            "A holiday tradition will gain new special meaning.",
+            "Shared laughter will strengthen family bonds.",
+            "Someone will express gratitude that warms your heart.",
+            "New connections made this season will become lasting.",
+        ],
+        "activity": [
+            "Volunteering will bring more joy than expected.",
+            "A holiday recipe will become a new favorite.",
+            "Decorating will spark childhood memories and smiles.",
+            "A seasonal outing will create wonderful stories.",
+            "Gift-giving will reveal your thoughtful nature.",
+        ],
+    },
+    "spooky": {
+        "fortune": [
+            "A mysterious stranger will bring intriguing news.",
+            "The shadows hold secrets waiting to be discovered.",
+            "An eerie coincidence will lead to good fortune.",
+            "Trust your instincts when things feel supernatural.",
+            "What lurks in the unknown may surprise you pleasantly.",
+        ],
+        "creative": [
+            "Dark inspiration will fuel your most creative work.",
+            "A haunting melody will linger in your imagination.",
+            "Embrace the strange—it leads to unique creations.",
+            "Your spooky ideas will captivate others.",
+            "The mysterious calls to your artistic soul.",
+        ],
+        "weather": [
+            "Foggy mornings will bring moments of reflection.",
+            "A stormy night will clear the air for fresh starts.",
+            "The chill in the air awakens dormant ambitions.",
+            "Moonlit evenings will inspire deep thoughts.",
+            "Shadows dancing in candlelight will spark ideas.",
+        ],
+    },
+    "adventure": {
+        "fortune": [
+            "An unexpected journey will change your perspective.",
+            "Adventure awaits those who dare to step outside.",
+            "A risk taken will lead to exciting discoveries.",
+            "New horizons call to your adventurous spirit.",
+            "The path less traveled will reward you greatly.",
+        ],
+        "activity": [
+            "Try something you've never done before—today.",
+            "Explore a new place, even if it's just nearby.",
+            "Say yes to spontaneous opportunities.",
+            "Break your routine and discover new favorites.",
+            "Challenge yourself physically—you'll be amazed.",
+        ],
+        "health": [
+            "An outdoor adventure will rejuvenate your spirit.",
+            "Physical challenges will reveal hidden strength.",
+            "Nature has healing powers waiting for you.",
+            "Movement in new environments boosts mental clarity.",
+            "Active exploration leads to lasting vitality.",
+        ],
+        "relationship": [
+            "Shared adventures create the strongest bonds.",
+            "A travel companion will become a lifelong friend.",
+            "New experiences together deepen connections.",
+            "Someone will join you on an unexpected journey.",
+            "Adventures bring out the best in relationships.",
+        ],
+    },
+}
+
 # History file location
 HISTORY_DIR = Path.home() / ".thefuture"
 HISTORY_FILE = HISTORY_DIR / "history.json"
+
+
+def get_themed_prediction(theme: str, category: str = None) -> tuple[str, str]:
+    """
+    Generate a prediction from a specific theme.
+    
+    Args:
+        theme: The theme to use (motivational, holiday, spooky, adventure).
+        category: Optional category within the theme.
+    
+    Returns:
+        A tuple of (prediction string, category used).
+    """
+    if theme not in THEMES:
+        available = ", ".join(THEMES.keys())
+        return f"Unknown theme '{theme}'. Available: {available}", theme
+    
+    theme_predictions = THEMES[theme]
+    
+    if category is not None:
+        if category not in theme_predictions:
+            available = ", ".join(theme_predictions.keys())
+            return f"Category '{category}' not available in theme '{theme}'. Available: {available}", category
+        return random.choice(theme_predictions[category]), category
+    
+    # Random category from the theme
+    category = random.choice(list(theme_predictions.keys()))
+    return random.choice(theme_predictions[category]), category
+
+
+def copy_to_clipboard(text: str) -> bool:
+    """
+    Copy text to the system clipboard.
+    
+    Uses multiple methods to ensure cross-platform compatibility:
+    1. pyperclip (if installed)
+    2. pbcopy (macOS)
+    3. xclip/xsel (Linux)
+    4. clip.exe (Windows/WSL)
+    
+    Args:
+        text: The text to copy to clipboard.
+    
+    Returns:
+        True if successful, False otherwise.
+    """
+    import subprocess
+    import platform
+    
+    # Try pyperclip first (cross-platform, if installed)
+    try:
+        import pyperclip
+        pyperclip.copy(text)
+        return True
+    except ImportError:
+        pass
+    except Exception:
+        pass
+    
+    system = platform.system().lower()
+    
+    # macOS
+    if system == "darwin":
+        try:
+            subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+    
+    # Windows
+    if system == "windows":
+        try:
+            subprocess.run(["clip"], input=text.encode("utf-8"), check=True)
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+    
+    # Linux - try xclip first, then xsel
+    if system == "linux":
+        # Try xclip
+        try:
+            subprocess.run(
+                ["xclip", "-selection", "clipboard"],
+                input=text.encode("utf-8"),
+                check=True,
+            )
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+        
+        # Try xsel
+        try:
+            subprocess.run(
+                ["xsel", "--clipboard", "--input"],
+                input=text.encode("utf-8"),
+                check=True,
+            )
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+        
+        # Try clip.exe (WSL)
+        try:
+            subprocess.run(["clip.exe"], input=text.encode("utf-8"), check=True)
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+    
+    return False
 
 
 def get_prediction(category: str = None) -> tuple[str, str]:
@@ -385,7 +604,7 @@ def get_smart_prediction(category: str = None) -> tuple[str, str]:
     return weighted_items[-1][0], weighted_items[-1][1]
 
 
-def predict_the_future(category: str = None, time_aware: bool = False, use_preferences: bool = False, smart: bool = False) -> dict:
+def predict_the_future(category: str = None, time_aware: bool = False, use_preferences: bool = False, smart: bool = False, theme: str = None) -> dict:
     """
     Generate a complete future prediction.
     
@@ -394,12 +613,17 @@ def predict_the_future(category: str = None, time_aware: bool = False, use_prefe
         time_aware: If True, include time-of-day and day-of-week context.
         use_preferences: If True, weight categories by user ratings.
         smart: If True, combine time-aware and preference modes.
+        theme: Optional theme for predictions (motivational, holiday, spooky, adventure).
     
     Returns:
         Dictionary with prediction details.
     """
     # Select prediction based on mode
-    if smart:
+    # Mode precedence: theme > smart > time_aware > use_preferences > default
+    # Theme mode uses its own prediction sets and doesn't combine with other modes
+    if theme:
+        prediction, used_category = get_themed_prediction(theme, category)
+    elif smart:
         prediction, used_category = get_smart_prediction(category)
     elif time_aware:
         prediction, used_category = get_time_aware_prediction(category)
@@ -417,6 +641,10 @@ def predict_the_future(category: str = None, time_aware: bool = False, use_prefe
         "confidence": f"{random.randint(70, 99)}%",
         "generated_at": datetime.now().isoformat(),
     }
+    
+    # Add theme info if using a theme
+    if theme:
+        result["theme"] = theme
     
     # Add time context if time-aware or smart mode
     if time_aware or smart:
@@ -801,6 +1029,9 @@ Examples:
   python app.py --export csv --since 2025-01-01  # Export predictions since date
   python app.py --share              # Format for social sharing
   python app.py --share twitter      # Format for Twitter/X
+  python app.py --theme motivational # Use motivational theme
+  python app.py --theme holiday -c relationship  # Holiday relationship prediction
+  python app.py --share --copy       # Share and copy to clipboard
         """,
     )
     
@@ -908,6 +1139,17 @@ Examples:
         metavar="FORMAT",
         help="Format prediction for social sharing (text, twitter, markdown)",
     )
+    # Iteration 6: New arguments
+    parser.add_argument(
+        "--theme",
+        choices=list(THEMES.keys()),
+        help="Use a themed prediction set (motivational, holiday, spooky, adventure)",
+    )
+    parser.add_argument(
+        "--copy",
+        action="store_true",
+        help="Copy prediction to clipboard (works with --share)",
+    )
     
     return parser.parse_args()
 
@@ -949,6 +1191,7 @@ def main():
             time_aware=args.time_aware,
             use_preferences=args.preferred,
             smart=args.smart,
+            theme=args.theme,
         )
         predictions.append(result)
         
@@ -957,11 +1200,32 @@ def main():
     
     # Share output format
     if args.share:
+        share_texts = []
         for pred in predictions:
-            print(format_for_sharing(pred, args.share))
+            share_text = format_for_sharing(pred, args.share)
+            share_texts.append(share_text)
+            print(share_text)
             if len(predictions) > 1:
                 print()
+        
+        # Copy to clipboard if requested
+        if args.copy:
+            full_text = "\n\n".join(share_texts)
+            if copy_to_clipboard(full_text):
+                print("📋 Copied to clipboard!")
+            else:
+                print("⚠️  Could not copy to clipboard. Install pyperclip or use xclip/pbcopy.")
         return
+    
+    # Copy to clipboard for non-share output
+    if args.copy:
+        # Use text format for clipboard
+        share_texts = [format_for_sharing(pred, "text") for pred in predictions]
+        full_text = "\n\n".join(share_texts)
+        if copy_to_clipboard(full_text):
+            print("📋 Copied to clipboard!")
+        else:
+            print("⚠️  Could not copy to clipboard. Install pyperclip or use xclip/pbcopy.")
     
     # JSON output
     if args.json:
@@ -977,13 +1241,15 @@ def main():
     
     # Standard formatted output
     print("=" * 50)
-    print("  🔮 THE FUTURE PREDICTOR - Iteration 5 🔮")
+    print("  🔮 THE FUTURE PREDICTOR - Iteration 6 🔮")
     print("=" * 50)
     
     # Show mode indicators
     # Note: Smart mode already includes both time-aware and preference features,
     # so we don't show those separately when smart mode is active
     modes = []
+    if args.theme:
+        modes.append(f"🎭 Theme: {args.theme.title()}")
     if args.smart:
         modes.append("🧠 Smart")
     elif args.time_aware:
@@ -999,6 +1265,8 @@ def main():
         print()
         print(f"ID: {result.get('id', 'N/A')}")
         print(f"Category: {result['category'].title()}")
+        if result.get("theme"):
+            print(f"Theme: {result['theme'].title()}")
         if result.get("time_of_day"):
             print(f"Time context: {result['time_of_day'].title()} ({result.get('day_type', '').title()})")
         print(f"Applies to: {result['applies_to']}")
@@ -1011,8 +1279,8 @@ def main():
     print("Use --help to see available options.")
     print("Use --history to view past predictions.")
     print("Use --feedback <id> <rating> to rate a prediction.")
-    print("Use --smart for time-aware + preference-weighted predictions.")
-    print("Use --share to format predictions for social media.")
+    print("Use --theme <name> for themed predictions (motivational, holiday, spooky, adventure).")
+    print("Use --copy to copy predictions to clipboard.")
 
 
 if __name__ == "__main__":

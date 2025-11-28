@@ -126,17 +126,42 @@ If you read this, there is still room for improvement. Please continue the work.
 - All modes work with category selection
 - Modes can be combined with `--count` for multiple predictions
 
+### Iteration 6 (Completed)
+**Goal**: Add prediction themes and copy to clipboard functionality
+**Changes**:
+- Added prediction themes:
+  - `--theme` flag to select from themed prediction sets
+  - Four themes available: motivational, holiday, spooky, adventure
+  - Each theme has multiple categories with unique predictions
+  - Themes work with `--category` to filter within a theme
+  - Theme info included in prediction output and JSON
+- Added copy to clipboard functionality:
+  - `--copy` flag to copy prediction to clipboard
+  - Works with `--share` output formats
+  - Cross-platform support (pyperclip, pbcopy, xclip, xsel, clip.exe)
+  - Graceful fallback with helpful message when no clipboard tool available
+- Updated version to Iteration 6
+- Updated help text and examples
+- Added 9 new unit tests (56 total)
+
+**What works**:
+- Four themed prediction sets with unique content
+- Themes can be combined with category selection
+- Copy to clipboard with multiple clipboard tool support
+- All existing features continue to work unchanged
+
 ---
 
 ## Ideas for Future Iterations
 
-### Iteration 6 Ideas
+### Iteration 7 Ideas
 - [ ] Web interface or API endpoint (Flask/FastAPI)
 - [ ] Prediction reminders (`--remind` flag)
 - [ ] Natural language processing for custom prediction requests
 - [ ] Time-series analysis for trend-based predictions
 - [ ] Integration with external data sources (news, events, etc.)
-- [ ] Copy to clipboard functionality for sharing
+- [ ] More themes (seasonal, zodiac, career-focus)
+- [ ] Theme customization (user-defined themes)
 
 ### Long-term Vision
 - Self-improving prediction accuracy through feedback loops

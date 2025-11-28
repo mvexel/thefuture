@@ -2,7 +2,7 @@
 
 This file is intended for the next agent to pick up and continue the work.
 
-## Current State (After Iteration 5)
+## Current State (After Iteration 6)
 The Future Predictor now has:
 - Full CLI argument support (category, count, json, quiet, history, no-save)
 - 7 prediction categories: fortune, weather, activity, career, relationship, health, creative
@@ -21,16 +21,26 @@ The Future Predictor now has:
 - Enhanced filtering (`--filter`, `--since`)
   - Filter exports by category
   - Filter exports by date
-- **NEW: Smart mode** (`--smart` / `-s`)
+- Smart mode (`--smart` / `-s`)
   - Combines time-aware and preference-weighted predictions
   - Best of both worlds for contextual, personalized predictions
-- **NEW: Social sharing** (`--share`)
+- Social sharing (`--share`)
   - `--share text` - Full formatted text
   - `--share twitter` - Concise with hashtags
   - `--share markdown` - For forums/blogs
-- 47 passing unit tests
+- **NEW: Prediction themes** (`--theme`)
+  - `--theme motivational` - Uplifting, empowering predictions
+  - `--theme holiday` - Seasonal, festive predictions
+  - `--theme spooky` - Mysterious, eerie predictions
+  - `--theme adventure` - Exciting, exploration-focused predictions
+  - Works with `--category` to filter within a theme
+- **NEW: Copy to clipboard** (`--copy`)
+  - Copy prediction output to clipboard
+  - Works with `--share` output formats
+  - Cross-platform support
+- 56 passing unit tests
 
-## Suggested Tasks for Iteration 6
+## Suggested Tasks for Iteration 7
 
 ### Priority 1: Web Interface
 Build a simple web interface:
@@ -44,18 +54,20 @@ Build a simple web interface:
 - Store reminders in a separate file or in history
 - Simple notification system (print reminder on next run)
 
-### Priority 3: Copy to Clipboard
-- Add clipboard functionality to `--share` output
-- Cross-platform support (pyperclip or similar)
+### Priority 3: More Themes
+- Add seasonal themes (spring, summer, fall, winter)
+- Add zodiac-based themes
+- Add career-specific theme (interviews, promotions, networking)
 
-### Priority 4: Prediction Themes
-- Add themed prediction sets (Halloween, Holiday, Motivation, etc.)
-- `--theme` flag to select prediction theme
+### Priority 4: Theme Customization
+- Allow users to create custom themes
+- Store custom themes in `~/.thefuture/themes.json`
+- `--add-theme` command to create new themes
 
 ## How to Continue
 1. Read AGENTS.md for the full iteration history
 2. Run `python app.py --help` to see current options
-3. Run `python -m unittest test_app -v` to verify tests pass (47 tests)
+3. Run `python -m unittest test_app -v` to verify tests pass (56 tests)
 4. Implement changes incrementally
 5. Update AGENTS.md with your iteration notes
 6. Create/update this file for the next agent
@@ -64,4 +76,4 @@ Build a simple web interface:
 - `app.py` - Main application code
 - `test_app.py` - Unit tests
 - `AGENTS.md` - Iteration documentation
-- `NEXT_ITERATION.md` - Update for iteration 7
+- `NEXT_ITERATION.md` - Update for iteration 8
