@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-The Future Predictor - Iteration 8
+The Future Predictor - Iteration 9
 
 A playful prediction system that generates fortunes and predictions.
-This iteration adds prediction reminders to help you follow up on your fortunes.
+This iteration adds custom themes to let you create your own prediction sets.
 """
 
 import argparse
@@ -414,24 +414,335 @@ THEMES = {
 HISTORY_DIR = Path.home() / ".thefuture"
 HISTORY_FILE = HISTORY_DIR / "history.json"
 REMINDERS_FILE = HISTORY_DIR / "reminders.json"
+CUSTOM_THEMES_FILE = HISTORY_DIR / "themes.json"
+
+
+# Custom theme functions (Iteration 9)
+
+def load_custom_themes() -> dict:
+    """
+    Load custom themes from file.
+    
+    Returns:
+        Dictionary of custom themes.
+    """
+    if not CUSTOM_THEMES_FILE.exists():
+        return {}
+    
+    try:
+        with open(CUSTOM_THEMES_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+
+def save_custom_themes(themes: dict) -> None:
+    """
+    Save custom themes to file.
+    
+    Args:
+        themes: Dictionary of themes to save.
+    """
+    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    
+    with open(CUSTOM_THEMES_FILE, "w") as f:
+        json.dump(themes, f, indent=2)
+
+
+def get_all_themes() -> dict:
+    """
+    Get all themes (built-in and custom).
+    
+    Returns:
+        Dictionary combining built-in and custom themes.
+    """
+    all_themes = dict(THEMES)
+    custom = load_custom_themes()
+    all_themes.update(custom)
+    return all_themes
+
+
+def add_custom_theme(name: str, categories: dict) -> bool:
+    """
+    Add a new custom theme.
+    
+    Args:
+        name: The theme name.
+        categories: Dictionary of categories with prediction lists.
+    
+    Returns:
+        True if successful, False otherwise.
+    """
+    if not name:
+        print("Error: Theme name cannot be empty.")
+        return False
+    
+    # Validate name (alphanumeric and underscores only)
+    if not name.replace("_", "").replace("-", "").isalnum():
+        print("Error: Theme name can only contain letters, numbers, underscores, and hyphens.")
+        return False
+    
+    name = name.lower()
+    
+    # Check if it's a built-in theme
+    if name in THEMES:
+        print(f"Error: Cannot overwrite built-in theme '{name}'.")
+        return False
+    
+    # Validate categories
+    if not categories:
+        print("Error: Theme must have at least one category with predictions.")
+        return False
+    
+    for cat_name, predictions in categories.items():
+        if not cat_name:
+            print("Error: Category name cannot be empty.")
+            return False
+        if not predictions:
+            print(f"Error: Category '{cat_name}' must have at least one prediction.")
+            return False
+        if not isinstance(predictions, list):
+            print(f"Error: Predictions for category '{cat_name}' must be a list.")
+            return False
+        for pred in predictions:
+            if not isinstance(pred, str) or not pred.strip():
+                print(f"Error: All predictions in category '{cat_name}' must be non-empty strings.")
+                return False
+    
+    custom_themes = load_custom_themes()
+    
+    if name in custom_themes:
+        print(f"Note: Updating existing custom theme '{name}'.")
+    
+    custom_themes[name] = categories
+    save_custom_themes(custom_themes)
+    
+    print(f"✅ Theme '{name}' saved successfully!")
+    print(f"   Categories: {', '.join(categories.keys())}")
+    total_predictions = sum(len(preds) for preds in categories.values())
+    print(f"   Total predictions: {total_predictions}")
+    print(f"\n   Use with: python app.py --theme {name}")
+    
+    return True
+
+
+def delete_custom_theme(name: str) -> bool:
+    """
+    Delete a custom theme.
+    
+    Args:
+        name: The theme name to delete.
+    
+    Returns:
+        True if successful, False otherwise.
+    """
+    name = name.lower()
+    
+    if name in THEMES:
+        print(f"Error: Cannot delete built-in theme '{name}'.")
+        return False
+    
+    custom_themes = load_custom_themes()
+    
+    if name not in custom_themes:
+        print(f"Error: Custom theme '{name}' not found.")
+        available = list(custom_themes.keys())
+        if available:
+            print(f"Available custom themes: {', '.join(available)}")
+        else:
+            print("No custom themes exist. Use --add-theme to create one.")
+        return False
+    
+    del custom_themes[name]
+    save_custom_themes(custom_themes)
+    
+    print(f"✅ Custom theme '{name}' deleted successfully!")
+    return True
+
+
+def list_themes() -> None:
+    """Display all available themes (built-in and custom)."""
+    print("\n🎭 Available Themes\n")
+    
+    # Built-in themes
+    print("📦 Built-in Themes:")
+    for name in sorted(THEMES.keys()):
+        categories = list(THEMES[name].keys())
+        total = sum(len(preds) for preds in THEMES[name].values())
+        print(f"   {name}: {', '.join(categories)} ({total} predictions)")
+    
+    # Custom themes
+    custom = load_custom_themes()
+    if custom:
+        print("\n🎨 Custom Themes:")
+        for name in sorted(custom.keys()):
+            categories = list(custom[name].keys())
+            total = sum(len(preds) for preds in custom[name].values())
+            print(f"   {name}: {', '.join(categories)} ({total} predictions)")
+    else:
+        print("\n🎨 Custom Themes:")
+        print("   No custom themes. Use --add-theme to create one.")
+    
+    print()
+
+
+def interactive_add_theme() -> bool:
+    """
+    Interactively create a new custom theme.
+    
+    Returns:
+        True if a theme was created, False otherwise.
+    """
+    print("\n🎨 Create Custom Theme\n")
+    print("Follow the prompts to create your own prediction theme.")
+    print("Press Ctrl+C to cancel at any time.\n")
+    
+    try:
+        # Get theme name
+        name = input("Theme name (e.g., 'birthday', 'work_life'): ").strip().lower()
+        if not name:
+            print("Cancelled: Theme name is required.")
+            return False
+        
+        if name in THEMES:
+            print(f"Error: '{name}' is a built-in theme and cannot be overwritten.")
+            return False
+        
+        categories = {}
+        
+        print("\nNow add categories and predictions.")
+        print("Enter an empty category name when done.\n")
+        
+        while True:
+            cat_name = input("Category name (or press Enter to finish): ").strip().lower()
+            if not cat_name:
+                break
+            
+            predictions = []
+            print(f"  Enter predictions for '{cat_name}' (empty line to finish category):")
+            
+            pred_num = 1
+            while True:
+                pred = input(f"    {pred_num}. ").strip()
+                if not pred:
+                    break
+                predictions.append(pred)
+                pred_num += 1
+            
+            if predictions:
+                categories[cat_name] = predictions
+                print(f"  ✓ Added {len(predictions)} prediction(s) to '{cat_name}'")
+            else:
+                print(f"  ⚠ Category '{cat_name}' skipped (no predictions)")
+        
+        if not categories:
+            print("\nCancelled: No categories were created.")
+            return False
+        
+        return add_custom_theme(name, categories)
+        
+    except (KeyboardInterrupt, EOFError):
+        print("\n\nTheme creation cancelled.")
+        return False
+
+
+def import_theme_from_file(filepath: str) -> bool:
+    """
+    Import a custom theme from a JSON file.
+    
+    The JSON file should have the format:
+    {
+        "name": "theme_name",
+        "categories": {
+            "category1": ["prediction1", "prediction2", ...],
+            "category2": ["prediction1", "prediction2", ...]
+        }
+    }
+    
+    Args:
+        filepath: Path to the JSON file.
+    
+    Returns:
+        True if successful, False otherwise.
+    """
+    try:
+        with open(filepath, "r") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: File '{filepath}' not found.")
+        return False
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in '{filepath}': {e}")
+        return False
+    except IOError as e:
+        print(f"Error reading file '{filepath}': {e}")
+        return False
+    
+    # Validate structure
+    if not isinstance(data, dict):
+        print("Error: JSON must be an object with 'name' and 'categories' fields.")
+        return False
+    
+    name = data.get("name")
+    categories = data.get("categories")
+    
+    if not name:
+        print("Error: Theme 'name' field is required.")
+        return False
+    
+    if not categories:
+        print("Error: Theme 'categories' field is required.")
+        return False
+    
+    return add_custom_theme(name, categories)
+
+
+def export_theme_to_json(theme_name: str) -> bool:
+    """
+    Export a theme to JSON format.
+    
+    Args:
+        theme_name: Name of the theme to export.
+    
+    Returns:
+        True if successful, False otherwise.
+    """
+    theme_name = theme_name.lower()
+    all_themes = get_all_themes()
+    
+    if theme_name not in all_themes:
+        print(f"Error: Theme '{theme_name}' not found.")
+        available = ", ".join(sorted(all_themes.keys()))
+        print(f"Available themes: {available}")
+        return False
+    
+    export_data = {
+        "name": theme_name,
+        "categories": all_themes[theme_name]
+    }
+    
+    print(json.dumps(export_data, indent=2))
+    return True
 
 
 def get_themed_prediction(theme: str, category: str = None) -> tuple[str, str]:
     """
-    Generate a prediction from a specific theme.
+    Generate a prediction from a specific theme (built-in or custom).
     
     Args:
-        theme: The theme to use (motivational, holiday, spooky, adventure).
+        theme: The theme to use (built-in or custom theme name).
         category: Optional category within the theme.
     
     Returns:
         A tuple of (prediction string, category used).
     """
-    if theme not in THEMES:
-        available = ", ".join(THEMES.keys())
+    all_themes = get_all_themes()
+    
+    if theme not in all_themes:
+        available = ", ".join(sorted(all_themes.keys()))
         return f"Unknown theme '{theme}'. Available: {available}", theme
     
-    theme_predictions = THEMES[theme]
+    theme_predictions = all_themes[theme]
     
     if category is not None:
         if category not in theme_predictions:
@@ -1511,13 +1822,19 @@ Examples:
   python app.py --remind 2025-12-25  # Set reminder for specific date
   python app.py --list-reminders     # View pending reminders
   python app.py --acknowledge 1      # Dismiss reminder #1
+  python app.py --list-themes        # Show all available themes
+  python app.py --add-theme          # Create a custom theme interactively
+  python app.py --theme my_theme     # Use a custom theme
+  python app.py --delete-theme my_theme  # Delete a custom theme
+  python app.py --export-theme zodiac    # Export theme to JSON
+  python app.py --import-theme file.json # Import theme from JSON file
         """,
     )
     
     parser.add_argument(
         "--category", "-c",
-        choices=list(PREDICTIONS.keys()),
-        help="Category of prediction",
+        metavar="NAME",
+        help="Category of prediction (use with --theme for theme-specific categories)",
     )
 
     def positive_int(value):
@@ -1621,8 +1938,8 @@ Examples:
     # Iteration 6: Theme and clipboard arguments
     parser.add_argument(
         "--theme",
-        choices=list(THEMES.keys()),
-        help="Use a themed prediction set (motivational, holiday, spooky, adventure, spring, summer, fall, winter, zodiac)",
+        metavar="NAME",
+        help="Use a themed prediction set (built-in or custom theme name)",
     )
     parser.add_argument(
         "--copy",
@@ -1669,6 +1986,32 @@ Examples:
         "--all",
         action="store_true",
         help="Include all items (with --list-reminders or --clear-reminders)",
+    )
+    # Iteration 9: Custom themes arguments
+    parser.add_argument(
+        "--add-theme",
+        action="store_true",
+        help="Interactively create a custom theme",
+    )
+    parser.add_argument(
+        "--list-themes",
+        action="store_true",
+        help="Show all available themes (built-in and custom)",
+    )
+    parser.add_argument(
+        "--delete-theme",
+        metavar="NAME",
+        help="Delete a custom theme by name",
+    )
+    parser.add_argument(
+        "--import-theme",
+        metavar="FILE",
+        help="Import a custom theme from a JSON file",
+    )
+    parser.add_argument(
+        "--export-theme",
+        metavar="NAME",
+        help="Export a theme to JSON format (prints to stdout)",
     )
     
     return parser.parse_args()
@@ -1720,6 +2063,27 @@ def main():
     # Handle history display
     if args.history or args.show_rated:
         display_history(show_rated_only=args.show_rated)
+        return
+    
+    # Handle theme-related commands (Iteration 9)
+    if args.list_themes:
+        list_themes()
+        return
+    
+    if args.add_theme:
+        interactive_add_theme()
+        return
+    
+    if args.delete_theme:
+        delete_custom_theme(args.delete_theme)
+        return
+    
+    if args.import_theme:
+        import_theme_from_file(args.import_theme)
+        return
+    
+    if args.export_theme:
+        export_theme_to_json(args.export_theme)
         return
     
     # Check for pending reminders before generating predictions
@@ -1782,7 +2146,7 @@ def main():
     
     # Standard formatted output
     print("=" * 50)
-    print("  🔮 THE FUTURE PREDICTOR - Iteration 8 🔮")
+    print("  🔮 THE FUTURE PREDICTOR - Iteration 9 🔮")
     print("=" * 50)
     
     # Show mode indicators
@@ -1828,8 +2192,8 @@ def main():
     print("Use --help to see available options.")
     print("Use --history to view past predictions.")
     print("Use --feedback <id> <rating> to rate a prediction.")
-    print("Use --remind to set a reminder for your prediction.")
-    print("Use --list-reminders to view pending reminders.")
+    print("Use --list-themes to see all themes.")
+    print("Use --add-theme to create a custom theme.")
 
 
 def create_api():
@@ -1848,7 +2212,7 @@ def create_api():
     api = FastAPI(
         title="The Future Predictor API",
         description="🔮 A playful prediction system that generates fortunes and predictions.",
-        version="Iteration 8",
+        version="Iteration 9",
     )
     
     class PredictionResponse(BaseModel):
@@ -1871,7 +2235,7 @@ def create_api():
     @api.get("/", response_model=HealthResponse, tags=["Health"])
     def health_check():
         """Check if the API is running."""
-        return {"status": "ok", "version": "Iteration 8"}
+        return {"status": "ok", "version": "Iteration 9"}
     
     @api.get("/predict", response_model=PredictionResponse, tags=["Predictions"])
     def get_prediction_endpoint(
