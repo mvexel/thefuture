@@ -1,11 +1,24 @@
 #!/usr/bin/env python
 """Tests for the Future Predictor app."""
 
+import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime, timedelta
 
-from app import get_prediction, get_future_date, predict_the_future, PREDICTIONS
+from app import (
+    get_prediction,
+    get_future_date,
+    predict_the_future,
+    load_history,
+    save_to_history,
+    PREDICTIONS,
+    HISTORY_DIR,
+    HISTORY_FILE,
+)
 
 
 class TestGetPrediction(unittest.TestCase):
@@ -35,6 +48,13 @@ class TestGetPrediction(unittest.TestCase):
         prediction, category = get_prediction(None)
         self.assertIn(category, PREDICTIONS.keys())
         self.assertIn(prediction, PREDICTIONS[category])
+
+    def test_new_categories_exist(self):
+        """New categories from Iteration 2 should exist."""
+        new_categories = ["career", "relationship", "health", "creative"]
+        for category in new_categories:
+            self.assertIn(category, PREDICTIONS)
+            self.assertGreater(len(PREDICTIONS[category]), 0)
 
 
 class TestGetFutureDate(unittest.TestCase):
@@ -99,6 +119,56 @@ class TestPredictTheFuture(unittest.TestCase):
         # If it's a valid category, prediction should be in that category's list
         if category in PREDICTIONS:
             self.assertIn(prediction, PREDICTIONS[category])
+
+    def test_has_generated_at_key(self):
+        """Result should have generated_at timestamp."""
+        result = predict_the_future()
+        self.assertIn("generated_at", result)
+        # Should be a valid ISO format datetime
+        datetime.fromisoformat(result["generated_at"])
+
+
+class TestHistory(unittest.TestCase):
+    """Tests for prediction history functions."""
+
+    def setUp(self):
+        """Set up a temporary directory for history tests."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.original_history_dir = HISTORY_DIR
+        self.original_history_file = HISTORY_FILE
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_load_empty_history(self, mock_dir, mock_file):
+        """Loading history from non-existent file returns empty list."""
+        mock_file.exists.return_value = False
+        result = load_history()
+        self.assertEqual(result, [])
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_save_and_load_history(self, mock_dir, mock_file):
+        """Saving and loading history should work."""
+        # Use a real temp file for this test
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            prediction = {
+                "prediction": "Test prediction",
+                "category": "test",
+                "generated_at": datetime.now().isoformat(),
+            }
+            save_to_history(prediction)
+            
+            history = load_history()
+            self.assertEqual(len(history), 1)
+            self.assertEqual(history[0]["prediction"], "Test prediction")
 
 
 if __name__ == "__main__":
