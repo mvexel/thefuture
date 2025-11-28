@@ -3,6 +3,7 @@
 
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -26,6 +27,8 @@ from app import (
     get_time_aware_prediction,
     get_preferred_categories,
     get_preferred_prediction,
+    get_smart_prediction,
+    format_for_sharing,
     PREDICTIONS,
     HISTORY_DIR,
     HISTORY_FILE,
@@ -150,7 +153,7 @@ class TestHistory(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -227,7 +230,7 @@ class TestFeedback(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -286,7 +289,7 @@ class TestStats(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -320,7 +323,7 @@ class TestExport(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -429,7 +432,7 @@ class TestPreferenceLearning(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -486,7 +489,7 @@ class TestEnhancedExport(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -567,6 +570,130 @@ class TestPredictTheFutureIteration4(unittest.TestCase):
         
         self.assertNotIn("time_of_day", result)
         self.assertNotIn("day_type", result)
+
+
+# Iteration 5 Tests
+class TestSmartMode(unittest.TestCase):
+    """Tests for smart mode functionality."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        # shutil already imported at top
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_smart_prediction_returns_tuple(self):
+        """Smart prediction should return a tuple."""
+        from app import get_smart_prediction
+        result = get_smart_prediction()
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+    def test_smart_prediction_with_category(self):
+        """Smart prediction with category should return that category."""
+        from app import get_smart_prediction
+        prediction, category = get_smart_prediction("fortune")
+        self.assertEqual(category, "fortune")
+
+    def test_smart_mode_adds_time_context(self):
+        """Smart mode should include time_of_day and day_type."""
+        result = predict_the_future(smart=True)
+        
+        self.assertIn("time_of_day", result)
+        self.assertIn("day_type", result)
+        self.assertIn(result["time_of_day"], ["morning", "afternoon", "evening", "night"])
+        self.assertIn(result["day_type"], ["weekday", "weekend"])
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_smart_mode_with_preferences(self, mock_dir, mock_file):
+        """Smart mode should work with user preferences."""
+        from app import get_smart_prediction
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            # Create history with ratings
+            history = [
+                {"prediction": "Test 1", "category": "fortune", "rating": 5},
+            ]
+            with open(temp_file, "w") as f:
+                json.dump(history, f)
+            
+            # Should still work without errors
+            result = get_smart_prediction()
+            self.assertIsInstance(result, tuple)
+            self.assertEqual(len(result), 2)
+
+
+class TestSocialSharing(unittest.TestCase):
+    """Tests for social sharing functionality."""
+
+    def test_format_for_sharing_text(self):
+        """Text format should include prediction and metadata."""
+        from app import format_for_sharing
+        prediction = {
+            "prediction": "Test prediction",
+            "category": "fortune",
+            "applies_to": "Monday, January 1, 2025",
+            "confidence": "85%",
+        }
+        result = format_for_sharing(prediction, "text")
+        
+        self.assertIn("Test prediction", result)
+        self.assertIn("Fortune", result)
+        self.assertIn("85%", result)
+        self.assertIn("The Future Predictor", result)
+
+    def test_format_for_sharing_twitter(self):
+        """Twitter format should be concise with hashtags."""
+        from app import format_for_sharing
+        prediction = {
+            "prediction": "Test prediction",
+            "category": "fortune",
+            "applies_to": "Monday, January 1, 2025",
+            "confidence": "85%",
+        }
+        result = format_for_sharing(prediction, "twitter")
+        
+        self.assertIn("Test prediction", result)
+        self.assertIn("#Fortune", result)
+        self.assertIn("#TheFuturePredictor", result)
+        # Twitter format should be shorter
+        self.assertLess(len(result), 280)  # Twitter character limit
+
+    def test_format_for_sharing_markdown(self):
+        """Markdown format should include proper markdown syntax."""
+        from app import format_for_sharing
+        prediction = {
+            "prediction": "Test prediction",
+            "category": "fortune",
+            "applies_to": "Monday, January 1, 2025",
+            "confidence": "85%",
+        }
+        result = format_for_sharing(prediction, "markdown")
+        
+        self.assertIn("##", result)  # Header
+        self.assertIn(">", result)   # Blockquote
+        self.assertIn("**", result)  # Bold
+        self.assertIn("Test prediction", result)
+
+    def test_format_for_sharing_default(self):
+        """Default format should be text."""
+        from app import format_for_sharing
+        prediction = {
+            "prediction": "Test prediction",
+            "category": "fortune",
+            "applies_to": "Monday, January 1, 2025",
+            "confidence": "85%",
+        }
+        result_default = format_for_sharing(prediction)
+        result_text = format_for_sharing(prediction, "text")
+        
+        self.assertEqual(result_default, result_text)
 
 
 if __name__ == "__main__":

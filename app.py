@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-The Future Predictor - Iteration 4
+The Future Predictor - Iteration 5
 
 A playful prediction system that generates fortunes and predictions.
-This iteration adds time-aware predictions, preference learning, and enhanced exports.
+This iteration adds smart mode (combined time-aware + preferences) and social sharing.
 """
 
 import argparse
@@ -326,7 +326,66 @@ def get_preferred_prediction(category: str = None) -> tuple[str, str]:
     return get_prediction(selected_category)
 
 
-def predict_the_future(category: str = None, time_aware: bool = False, use_preferences: bool = False) -> dict:
+def get_smart_prediction(category: str = None) -> tuple[str, str]:
+    """
+    Generate a prediction combining time-awareness with preference learning.
+    
+    This function combines the best of both modes:
+    - Time-aware predictions based on time of day and day of week
+    - Preference weighting from user ratings
+    
+    Args:
+        category: Optional category. If specified, uses that category with time context.
+    
+    Returns:
+        A tuple of (prediction string, category used).
+    """
+    now = datetime.now()
+    time_of_day = get_time_of_day(now)
+    day_type = get_day_type(now)
+    
+    # If a specific category is requested, use it
+    if category is not None:
+        if category not in PREDICTIONS:
+            available = ", ".join(PREDICTIONS.keys())
+            return f"Unknown category '{category}'. Available: {available}", category
+        return random.choice(PREDICTIONS[category]), category
+    
+    preferences = get_preferred_categories()
+    
+    # Build weighted list for efficient selection (without duplicating entries)
+    weighted_items = []
+    
+    # Add regular category predictions with preference weighting
+    for cat, preds in PREDICTIONS.items():
+        # Apply preference weight (1.0 to 5.0 based on rating), capped at 5.0
+        pref_weight = min(1.0 + preferences.get(cat, 0) * 4, 5.0)
+        for pred in preds:
+            weighted_items.append((pred, cat, pref_weight))
+    
+    # Add time-of-day predictions with moderate weight (2.0 for relevance)
+    for pred in TIME_PREDICTIONS.get(time_of_day, []):
+        weighted_items.append((pred, f"time:{time_of_day}", 2.0))
+    
+    # Add day-type predictions with moderate weight (2.0 for relevance)
+    for pred in DAY_PREDICTIONS.get(day_type, []):
+        weighted_items.append((pred, f"day:{day_type}", 2.0))
+    
+    # Weighted random selection using cumulative weights
+    total_weight = sum(w for _, _, w in weighted_items)
+    rand = random.uniform(0, total_weight)
+    cumulative = 0
+    
+    for pred, cat, weight in weighted_items:
+        cumulative += weight
+        if rand <= cumulative:
+            return pred, cat
+    
+    # Fallback (should not reach here)
+    return weighted_items[-1][0], weighted_items[-1][1]
+
+
+def predict_the_future(category: str = None, time_aware: bool = False, use_preferences: bool = False, smart: bool = False) -> dict:
     """
     Generate a complete future prediction.
     
@@ -334,12 +393,15 @@ def predict_the_future(category: str = None, time_aware: bool = False, use_prefe
         category: Optional prediction category.
         time_aware: If True, include time-of-day and day-of-week context.
         use_preferences: If True, weight categories by user ratings.
+        smart: If True, combine time-aware and preference modes.
     
     Returns:
         Dictionary with prediction details.
     """
     # Select prediction based on mode
-    if time_aware:
+    if smart:
+        prediction, used_category = get_smart_prediction(category)
+    elif time_aware:
         prediction, used_category = get_time_aware_prediction(category)
     elif use_preferences:
         prediction, used_category = get_preferred_prediction(category)
@@ -356,8 +418,8 @@ def predict_the_future(category: str = None, time_aware: bool = False, use_prefe
         "generated_at": datetime.now().isoformat(),
     }
     
-    # Add time context if time-aware
-    if time_aware:
+    # Add time context if time-aware or smart mode
+    if time_aware or smart:
         now = datetime.now()
         result["time_of_day"] = get_time_of_day(now)
         result["day_type"] = get_day_type(now)
@@ -687,6 +749,36 @@ def clear_history() -> bool:
         return False
 
 
+def format_for_sharing(prediction: dict, format_type: str = "text") -> str:
+    """
+    Format a prediction for sharing on social media.
+    
+    Args:
+        prediction: The prediction dictionary to format.
+        format_type: The format type ('text', 'twitter', 'markdown').
+    
+    Returns:
+        Formatted prediction string ready for sharing.
+    """
+    pred_text = prediction.get("prediction", "")
+    category = prediction.get("category", "unknown").title()
+    applies_to = prediction.get("applies_to", "")
+    confidence = prediction.get("confidence", "")
+    
+    if format_type == "twitter":
+        # Twitter/X format - concise with hashtags
+        hashtag = f"#{category.replace(' ', '')}" if category else ""
+        return f"🔮 {pred_text}\n\n{hashtag} #TheFuturePredictor"
+    
+    elif format_type == "markdown":
+        # Markdown format for forums, blogs, Discord, etc.
+        return f"## 🔮 My Fortune\n\n> {pred_text}\n\n**Category**: {category} | **Applies to**: {applies_to} | **Confidence**: {confidence}\n\n*Generated by The Future Predictor*"
+    
+    else:  # text format (default)
+        # Plain text format for general sharing
+        return f"🔮 {pred_text}\n\n📅 Applies to: {applies_to}\n🎯 Category: {category}\n💫 Confidence: {confidence}\n\n— The Future Predictor"
+
+
 def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -699,6 +791,7 @@ Examples:
   python app.py --count 3            # Three predictions
   python app.py --time-aware         # Time-aware prediction (morning/evening, weekday/weekend)
   python app.py --preferred          # Preference-weighted prediction (based on your ratings)
+  python app.py --smart              # Smart mode (combines time-aware + preferences)
   python app.py --json               # JSON output
   python app.py --history            # View past predictions
   python app.py --feedback 5 4       # Rate prediction #5 with 4 stars
@@ -706,6 +799,8 @@ Examples:
   python app.py --export csv         # Export history as CSV
   python app.py --export json --filter fortune   # Export fortune predictions as JSON
   python app.py --export csv --since 2025-01-01  # Export predictions since date
+  python app.py --share              # Format for social sharing
+  python app.py --share twitter      # Format for Twitter/X
         """,
     )
     
@@ -799,6 +894,20 @@ Examples:
         metavar="DATE",
         help="Filter history/export by date (ISO format: YYYY-MM-DD)",
     )
+    # Iteration 5: New arguments
+    parser.add_argument(
+        "--smart", "-s",
+        action="store_true",
+        help="Smart mode: combine time-aware and preference-weighted predictions",
+    )
+    parser.add_argument(
+        "--share",
+        nargs="?",
+        const="text",
+        choices=["text", "twitter", "markdown"],
+        metavar="FORMAT",
+        help="Format prediction for social sharing (text, twitter, markdown)",
+    )
     
     return parser.parse_args()
 
@@ -839,11 +948,20 @@ def main():
             category=args.category,
             time_aware=args.time_aware,
             use_preferences=args.preferred,
+            smart=args.smart,
         )
         predictions.append(result)
         
         if not args.no_save:
             save_to_history(result)
+    
+    # Share output format
+    if args.share:
+        for pred in predictions:
+            print(format_for_sharing(pred, args.share))
+            if len(predictions) > 1:
+                print()
+        return
     
     # JSON output
     if args.json:
@@ -859,14 +977,18 @@ def main():
     
     # Standard formatted output
     print("=" * 50)
-    print("  🔮 THE FUTURE PREDICTOR - Iteration 4 🔮")
+    print("  🔮 THE FUTURE PREDICTOR - Iteration 5 🔮")
     print("=" * 50)
     
     # Show mode indicators
+    # Note: Smart mode already includes both time-aware and preference features,
+    # so we don't show those separately when smart mode is active
     modes = []
-    if args.time_aware:
+    if args.smart:
+        modes.append("🧠 Smart")
+    elif args.time_aware:
         modes.append("⏰ Time-aware")
-    if args.preferred:
+    if args.preferred and not args.smart:
         modes.append("⭐ Preference-weighted")
     if modes:
         print(f"  Mode: {', '.join(modes)}")
@@ -889,8 +1011,8 @@ def main():
     print("Use --help to see available options.")
     print("Use --history to view past predictions.")
     print("Use --feedback <id> <rating> to rate a prediction.")
-    print("Use --time-aware for time-contextual predictions.")
-    print("Use --preferred for preference-weighted predictions.")
+    print("Use --smart for time-aware + preference-weighted predictions.")
+    print("Use --share to format predictions for social media.")
 
 
 if __name__ == "__main__":
