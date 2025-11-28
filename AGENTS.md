@@ -150,18 +150,50 @@ If you read this, there is still room for improvement. Please continue the work.
 - Copy to clipboard with multiple clipboard tool support
 - All existing features continue to work unchanged
 
+### Iteration 7 (Completed)
+**Goal**: Add REST API and expand themes (seasonal, zodiac)
+**Changes**:
+- Added REST API with FastAPI:
+  - `--api` flag to start the REST API server
+  - `--port` flag to specify custom port (default: 8000)
+  - `GET /` - Health check endpoint
+  - `GET /predict` - Generate a prediction (supports category, theme, time_aware, smart, save params)
+  - `GET /predict/batch` - Generate multiple predictions at once
+  - `GET /themes` - List all available themes and their categories
+  - `GET /categories` - List all available prediction categories
+  - `GET /history` - Get prediction history (with filters)
+  - `GET /stats` - Get prediction statistics
+- Added seasonal themes:
+  - `--theme spring` - Spring renewal predictions
+  - `--theme summer` - Summer warmth and adventure predictions
+  - `--theme fall` - Autumn harvest and transformation predictions
+  - `--theme winter` - Winter rest and reflection predictions
+- Added zodiac theme:
+  - `--theme zodiac` - Predictions for all 12 zodiac signs
+  - Categories: aries, taurus, gemini, cancer, leo, virgo, libra, scorpio, sagittarius, capricorn, aquarius, pisces
+- Updated version to Iteration 7
+- Updated help text and examples
+- Added 16 new unit tests (72 total)
+
+**What works**:
+- REST API for programmatic access to predictions
+- All API endpoints functional with proper error handling
+- Four new seasonal themed prediction sets
+- Complete zodiac theme with all 12 signs
+- All existing features continue to work unchanged
+
 ---
 
 ## Ideas for Future Iterations
 
-### Iteration 7 Ideas
-- [ ] Web interface or API endpoint (Flask/FastAPI)
+### Iteration 8 Ideas
 - [ ] Prediction reminders (`--remind` flag)
 - [ ] Natural language processing for custom prediction requests
 - [ ] Time-series analysis for trend-based predictions
 - [ ] Integration with external data sources (news, events, etc.)
-- [ ] More themes (seasonal, zodiac, career-focus)
 - [ ] Theme customization (user-defined themes)
+- [ ] Web frontend for the API
+- [ ] Rate limiting and authentication for API
 
 ### Long-term Vision
 - Self-improving prediction accuracy through feedback loops
