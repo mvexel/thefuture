@@ -103,20 +103,40 @@ If you read this, there is still room for improvement. Please continue the work.
 - Category and date filtering for exports
 - Mode indicators in output
 
+### Iteration 5 (Completed)
+**Goal**: Add smart mode (combined time-aware + preferences) and social sharing
+**Changes**:
+- Added smart mode:
+  - `--smart` / `-s` - Combine time-aware and preference-weighted predictions
+  - Smart mode uses both time-of-day/weekday context AND user rating preferences
+  - Preference weights boost high-rated categories
+  - Time-based predictions get double weight for relevance
+- Added social sharing:
+  - `--share` - Format predictions for social media (default: text format)
+  - `--share text` - Full formatted text with emojis
+  - `--share twitter` - Concise format with hashtags (under 280 chars)
+  - `--share markdown` - Formatted for forums, blogs, Discord
+- Updated version to Iteration 5
+- Updated footer hints to show new features
+- Added 8 new unit tests (47 total)
+
+**What works**:
+- Smart mode combines time awareness with preference learning
+- Three social sharing formats (text, twitter, markdown)
+- All modes work with category selection
+- Modes can be combined with `--count` for multiple predictions
+
 ---
 
 ## Ideas for Future Iterations
 
-### Iteration 5 Ideas
-- [ ] Web interface or API endpoint
+### Iteration 6 Ideas
+- [ ] Web interface or API endpoint (Flask/FastAPI)
 - [ ] Prediction reminders (`--remind` flag)
-- [ ] Share predictions via social media or email
-- [ ] Combine time-aware and preferred modes
 - [ ] Natural language processing for custom prediction requests
 - [ ] Time-series analysis for trend-based predictions
 - [ ] Integration with external data sources (news, events, etc.)
-- [ ] Share predictions via social media or email
-- [ ] Prediction reminders and follow-ups
+- [ ] Copy to clipboard functionality for sharing
 
 ### Long-term Vision
 - Self-improving prediction accuracy through feedback loops
