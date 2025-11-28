@@ -75,18 +75,43 @@ If you read this, there is still room for improvement. Please continue the work.
 - CSV and Markdown export formats
 - History clearing with confirmation prompt
 
+### Iteration 4 (Completed)
+**Goal**: Add time-aware predictions, preference learning, and enhanced exports
+**Changes**:
+- Added time-aware predictions:
+  - `--time-aware` / `-t` - Generate predictions based on time of day and day of week
+  - Time categories: morning (5-12), afternoon (12-17), evening (17-21), night (21-5)
+  - Day categories: weekday (Mon-Fri), weekend (Sat-Sun)
+  - New time-specific prediction templates for each time period
+- Added preference learning:
+  - `--preferred` / `-p` - Weight predictions by user rating preferences
+  - Tracks category ratings and calculates preference scores
+  - High-rated categories appear more frequently with `--preferred`
+  - Preference visualization in `--stats` output
+- Added enhanced export capabilities:
+  - `--export json` - Export history as JSON array
+  - `--filter CATEGORY` - Filter exports by category
+  - `--since DATE` - Filter exports by date (ISO format)
+- Updated output to show active modes
+- Added 16 new unit tests (39 total)
+
+**What works**:
+- Time-aware predictions with contextual suggestions
+- Preference learning from user ratings
+- Weighted random selection for preferred categories
+- JSON export format
+- Category and date filtering for exports
+- Mode indicators in output
+
 ---
 
 ## Ideas for Future Iterations
 
-### Iteration 4 Ideas
-- [ ] Time-of-day aware predictions (morning vs evening)
-- [ ] Day-of-week aware predictions (weekday vs weekend)
-- [ ] Learn from user preferences based on high-rated categories
-- [ ] Weighted prediction selection based on feedback
-
-### Iteration 5+ Ideas
+### Iteration 5 Ideas
 - [ ] Web interface or API endpoint
+- [ ] Prediction reminders (`--remind` flag)
+- [ ] Share predictions via social media or email
+- [ ] Combine time-aware and preferred modes
 - [ ] Natural language processing for custom prediction requests
 - [ ] Time-series analysis for trend-based predictions
 - [ ] Integration with external data sources (news, events, etc.)
