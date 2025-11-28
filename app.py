@@ -38,7 +38,7 @@ PREDICTIONS = {
 }
 
 
-def get_prediction(category: str = None) -> str:
+def get_prediction(category: str = None) -> tuple[str, str]:
     """
     Generate a prediction for the future.
     
@@ -47,16 +47,16 @@ def get_prediction(category: str = None) -> str:
                   If None, a random category is chosen.
     
     Returns:
-        A prediction string.
+        A tuple of (prediction string, category used).
     """
     if category is None:
         category = random.choice(list(PREDICTIONS.keys()))
     
     if category not in PREDICTIONS:
         available = ", ".join(PREDICTIONS.keys())
-        return f"Unknown category '{category}'. Available: {available}"
+        return f"Unknown category '{category}'. Available: {available}", category
     
-    return random.choice(PREDICTIONS[category])
+    return random.choice(PREDICTIONS[category]), category
 
 
 def get_future_date(days_ahead: int = 1) -> str:
@@ -83,13 +83,13 @@ def predict_the_future(category: str = None) -> dict:
     Returns:
         Dictionary with prediction details.
     """
-    prediction = get_prediction(category)
+    prediction, used_category = get_prediction(category)
     future_date = get_future_date(random.randint(1, 7))
     
     return {
         "prediction": prediction,
         "applies_to": future_date,
-        "category": category or "general",
+        "category": used_category,
         "confidence": f"{random.randint(70, 99)}%",
     }
 
