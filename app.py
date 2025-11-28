@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-The Future Predictor - Iteration 6
+The Future Predictor - Iteration 7
 
 A playful prediction system that generates fortunes and predictions.
-This iteration adds prediction themes and copy to clipboard functionality.
+This iteration adds a REST API endpoint and new themes (seasonal and zodiac).
 """
 
 import argparse
@@ -228,6 +228,184 @@ THEMES = {
             "New experiences together deepen connections.",
             "Someone will join you on an unexpected journey.",
             "Adventures bring out the best in relationships.",
+        ],
+    },
+    "spring": {
+        "fortune": [
+            "New beginnings are blooming all around you.",
+            "Fresh energy will carry you to new heights.",
+            "Growth is happening, even when you can't see it yet.",
+            "Spring rain washes away what no longer serves you.",
+            "A season of renewal awaits with open arms.",
+        ],
+        "health": [
+            "Your energy levels will rise with the lengthening days.",
+            "Outdoor activities will invigorate your spirit.",
+            "Spring cleaning extends to mind, body, and soul.",
+            "Fresh air and sunshine will boost your wellbeing.",
+            "Seasonal fruits will nourish your body perfectly.",
+        ],
+        "relationship": [
+            "New connections will blossom unexpectedly.",
+            "Existing relationships will be refreshed and renewed.",
+            "Love is in the air this season.",
+            "A spring fling may lead to something lasting.",
+            "Outdoor gatherings will strengthen social bonds.",
+        ],
+    },
+    "summer": {
+        "fortune": [
+            "Warmth and abundance are heading your way.",
+            "Long days will bring extended opportunities.",
+            "Summer adventures will create lasting memories.",
+            "The sun will shine on your endeavors.",
+            "A carefree moment will bring unexpected insight.",
+        ],
+        "activity": [
+            "Beach days will reset your perspective.",
+            "A summer trip will exceed expectations.",
+            "Outdoor concerts and events will bring joy.",
+            "Water activities will be particularly refreshing.",
+            "Late sunsets will inspire evening adventures.",
+        ],
+        "relationship": [
+            "Summer gatherings will deepen friendships.",
+            "Vacation time together will strengthen bonds.",
+            "Warm weather invites warm conversations.",
+            "A summer romance may blossom beautifully.",
+            "Outdoor celebrations will create shared memories.",
+        ],
+    },
+    "fall": {
+        "fortune": [
+            "A harvest of your efforts is approaching.",
+            "Transformation is in the air—embrace change.",
+            "Cozy moments will bring comfort and clarity.",
+            "The changing leaves remind us of beautiful transitions.",
+            "Preparation now leads to winter abundance.",
+        ],
+        "creative": [
+            "Autumn colors will inspire your creative work.",
+            "The crisp air will sharpen your focus.",
+            "Reflection time will yield creative breakthroughs.",
+            "Cozy indoor projects will flourish.",
+            "Harvest themes will enhance your artistry.",
+        ],
+        "career": [
+            "Fall momentum will accelerate your projects.",
+            "New initiatives will take root beautifully.",
+            "The busy season brings recognition opportunities.",
+            "Strategic planning now pays off later.",
+            "Professional harvest time is approaching.",
+        ],
+    },
+    "winter": {
+        "fortune": [
+            "Warmth awaits in unexpected places.",
+            "The quiet season brings inner wisdom.",
+            "Winter's stillness reveals hidden truths.",
+            "Rest now prepares you for spring's renewal.",
+            "Even in darkness, light is always returning.",
+        ],
+        "health": [
+            "Cozy self-care will restore your energy.",
+            "Winter rest is essential for spring vitality.",
+            "Warm foods will nourish body and soul.",
+            "Indoor exercise will maintain your momentum.",
+            "Hibernation mode brings necessary restoration.",
+        ],
+        "relationship": [
+            "Cozy gatherings will strengthen bonds.",
+            "Winter warmth is shared warmth.",
+            "Holiday traditions will create lasting memories.",
+            "Indoor time together deepens connections.",
+            "Cold weather brings people closer together.",
+        ],
+    },
+    "zodiac": {
+        "aries": [
+            "Your bold energy will open new doors.",
+            "Leadership opportunities await your fiery spirit.",
+            "Your courage will inspire those around you.",
+            "Action taken today leads to victory tomorrow.",
+            "Your pioneering spirit will blaze new trails.",
+        ],
+        "taurus": [
+            "Patience will bring the rewards you seek.",
+            "Your steady approach will lead to lasting success.",
+            "Comfort and abundance are aligning for you.",
+            "Trust your practical instincts—they are sound.",
+            "Financial stability is within your reach.",
+        ],
+        "gemini": [
+            "Communication will be your superpower.",
+            "New ideas will flow effortlessly to you.",
+            "Social connections will bring exciting opportunities.",
+            "Your adaptability will serve you well.",
+            "Curiosity will lead to wonderful discoveries.",
+        ],
+        "cancer": [
+            "Home and family will bring deep fulfillment.",
+            "Your intuition is especially strong right now.",
+            "Nurturing others will nurture your soul.",
+            "Emotional connections will deepen beautifully.",
+            "Trust your feelings—they guide you wisely.",
+        ],
+        "leo": [
+            "Your creativity will shine brightly for all to see.",
+            "Recognition and appreciation are coming your way.",
+            "Your generosity will return to you magnified.",
+            "Leadership roles will suit you perfectly.",
+            "Express yourself boldly—the world is watching.",
+        ],
+        "virgo": [
+            "Attention to detail will bring major rewards.",
+            "Your analytical skills will solve an important problem.",
+            "Health improvements will boost your energy.",
+            "Organization now leads to freedom later.",
+            "Your helpful nature will be deeply appreciated.",
+        ],
+        "libra": [
+            "Harmony and balance are aligning in your life.",
+            "Partnership opportunities will prove beneficial.",
+            "Your diplomacy will resolve a tricky situation.",
+            "Beauty and art will inspire your path forward.",
+            "Fairness you show will return to you.",
+        ],
+        "scorpio": [
+            "Transformation and rebirth await you.",
+            "Your intensity will achieve remarkable results.",
+            "Hidden truths will be revealed in your favor.",
+            "Passion will drive you to new heights.",
+            "Trust your ability to navigate change.",
+        ],
+        "sagittarius": [
+            "Adventure and exploration call to your spirit.",
+            "Optimism will attract wonderful opportunities.",
+            "Travel plans will exceed your expectations.",
+            "Higher learning will open new doorways.",
+            "Your philosophical insights will help others.",
+        ],
+        "capricorn": [
+            "Your ambition will lead to significant achievement.",
+            "Discipline and hard work will be rewarded.",
+            "Long-term goals are closer than they appear.",
+            "Authority and responsibility suit you well.",
+            "Steady climbing leads to the summit.",
+        ],
+        "aquarius": [
+            "Innovation and originality will set you apart.",
+            "Humanitarian efforts will bring deep fulfillment.",
+            "Your unique perspective will be valued.",
+            "Technology will serve your goals beautifully.",
+            "Independence brings you strength.",
+        ],
+        "pisces": [
+            "Creativity and imagination will guide your way.",
+            "Compassion shown to others will return tenfold.",
+            "Dreams will bring important messages.",
+            "Artistic expression will heal and inspire.",
+            "Your sensitivity is a gift—honor it.",
         ],
     },
 }
@@ -1031,7 +1209,11 @@ Examples:
   python app.py --share twitter      # Format for Twitter/X
   python app.py --theme motivational # Use motivational theme
   python app.py --theme holiday -c relationship  # Holiday relationship prediction
+  python app.py --theme zodiac -c aries   # Zodiac prediction for Aries
+  python app.py --theme spring       # Seasonal spring prediction
   python app.py --share --copy       # Share and copy to clipboard
+  python app.py --api                # Start the REST API server
+  python app.py --api --port 3000    # Start API on custom port
         """,
     )
     
@@ -1139,16 +1321,28 @@ Examples:
         metavar="FORMAT",
         help="Format prediction for social sharing (text, twitter, markdown)",
     )
-    # Iteration 6: New arguments
+    # Iteration 6: Theme and clipboard arguments
     parser.add_argument(
         "--theme",
         choices=list(THEMES.keys()),
-        help="Use a themed prediction set (motivational, holiday, spooky, adventure)",
+        help="Use a themed prediction set (motivational, holiday, spooky, adventure, spring, summer, fall, winter, zodiac)",
     )
     parser.add_argument(
         "--copy",
         action="store_true",
         help="Copy prediction to clipboard (works with --share)",
+    )
+    # Iteration 7: API argument
+    parser.add_argument(
+        "--api",
+        action="store_true",
+        help="Start the REST API server (requires FastAPI and uvicorn)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for the API server (default: 8000)",
     )
     
     return parser.parse_args()
@@ -1157,6 +1351,11 @@ Examples:
 def main():
     """Main entry point for the future predictor."""
     args = parse_args()
+    
+    # Handle API server startup (Iteration 7)
+    if args.api:
+        start_api(port=args.port)
+        return
     
     # Handle clear history (must be first as it modifies history)
     if args.clear_history:
@@ -1241,7 +1440,7 @@ def main():
     
     # Standard formatted output
     print("=" * 50)
-    print("  🔮 THE FUTURE PREDICTOR - Iteration 6 🔮")
+    print("  🔮 THE FUTURE PREDICTOR - Iteration 7 🔮")
     print("=" * 50)
     
     # Show mode indicators
@@ -1279,8 +1478,194 @@ def main():
     print("Use --help to see available options.")
     print("Use --history to view past predictions.")
     print("Use --feedback <id> <rating> to rate a prediction.")
-    print("Use --theme <name> for themed predictions (motivational, holiday, spooky, adventure).")
-    print("Use --copy to copy predictions to clipboard.")
+    print("Use --theme <name> for themed predictions (e.g., zodiac, seasonal).")
+    print("Use --api to start the REST API server.")
+
+
+def create_api():
+    """
+    Create and return a FastAPI application for the prediction API.
+    
+    Returns:
+        FastAPI application instance.
+    """
+    try:
+        from fastapi import FastAPI, Query, HTTPException
+        from pydantic import BaseModel
+    except ImportError:
+        raise ImportError("FastAPI is required for the API. Install with: pip install fastapi uvicorn")
+    
+    api = FastAPI(
+        title="The Future Predictor API",
+        description="🔮 A playful prediction system that generates fortunes and predictions.",
+        version="Iteration 7",
+    )
+    
+    class PredictionResponse(BaseModel):
+        """Response model for predictions."""
+        prediction: str
+        applies_to: str
+        category: str
+        confidence: str
+        generated_at: str
+        id: int | None = None
+        theme: str | None = None
+        time_of_day: str | None = None
+        day_type: str | None = None
+    
+    class HealthResponse(BaseModel):
+        """Response model for health check."""
+        status: str
+        version: str
+    
+    @api.get("/", response_model=HealthResponse, tags=["Health"])
+    def health_check():
+        """Check if the API is running."""
+        return {"status": "ok", "version": "Iteration 7"}
+    
+    @api.get("/predict", response_model=PredictionResponse, tags=["Predictions"])
+    def get_prediction_endpoint(
+        category: str = Query(None, description="Prediction category"),
+        theme: str = Query(None, description="Prediction theme (e.g., zodiac, spring, motivational)"),
+        time_aware: bool = Query(False, description="Use time-aware predictions"),
+        smart: bool = Query(False, description="Use smart mode (time + preferences)"),
+        save: bool = Query(True, description="Save prediction to history"),
+    ):
+        """
+        Generate a new prediction.
+        
+        - **category**: Optional category (fortune, weather, activity, career, relationship, health, creative)
+        - **theme**: Optional theme (motivational, holiday, spooky, adventure, spring, summer, fall, winter, zodiac)
+        - **time_aware**: Generate time-aware predictions based on time of day
+        - **smart**: Use smart mode combining time-awareness and preferences
+        - **save**: Whether to save the prediction to history (default: True)
+        """
+        # Validate theme
+        if theme and theme not in THEMES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown theme '{theme}'. Available: {', '.join(THEMES.keys())}"
+            )
+        
+        # Validate category
+        if category and category not in PREDICTIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown category '{category}'. Available: {', '.join(PREDICTIONS.keys())}"
+            )
+        
+        result = predict_the_future(
+            category=category,
+            time_aware=time_aware,
+            smart=smart,
+            theme=theme,
+        )
+        
+        if save:
+            save_to_history(result)
+        
+        return result
+    
+    @api.get("/predict/batch", response_model=list[PredictionResponse], tags=["Predictions"])
+    def get_batch_predictions(
+        count: int = Query(3, ge=1, le=100, description="Number of predictions to generate"),
+        category: str = Query(None, description="Prediction category"),
+        theme: str = Query(None, description="Prediction theme"),
+        save: bool = Query(True, description="Save predictions to history"),
+    ):
+        """Generate multiple predictions at once."""
+        predictions = []
+        for _ in range(count):
+            result = predict_the_future(category=category, theme=theme)
+            if save:
+                save_to_history(result)
+            predictions.append(result)
+        return predictions
+    
+    @api.get("/themes", tags=["Information"])
+    def list_themes():
+        """List all available prediction themes and their categories."""
+        return {
+            theme: list(categories.keys())
+            for theme, categories in THEMES.items()
+        }
+    
+    @api.get("/categories", tags=["Information"])
+    def list_categories():
+        """List all available prediction categories."""
+        return list(PREDICTIONS.keys())
+    
+    @api.get("/history", tags=["History"])
+    def get_history(
+        count: int = Query(10, ge=1, le=100, description="Number of recent predictions"),
+        category: str = Query(None, description="Filter by category"),
+        rated_only: bool = Query(False, description="Show only rated predictions"),
+    ):
+        """Get prediction history."""
+        history = load_history()
+        
+        if category:
+            history = [p for p in history if p.get("category", "").lower() == category.lower()]
+        
+        if rated_only:
+            history = [p for p in history if p.get("rating") is not None]
+        
+        return history[-count:]
+    
+    @api.get("/stats", tags=["History"])
+    def get_stats():
+        """Get prediction statistics."""
+        history = load_history()
+        
+        if not history:
+            return {"total_predictions": 0, "categories": {}, "ratings": {}}
+        
+        # Count by category
+        category_counts = {}
+        for pred in history:
+            cat = pred.get("category", "unknown")
+            category_counts[cat] = category_counts.get(cat, 0) + 1
+        
+        # Rating stats
+        rated = [p for p in history if p.get("rating") is not None]
+        rating_stats = {}
+        if rated:
+            rating_stats = {
+                "count": len(rated),
+                "average": round(sum(p["rating"] for p in rated) / len(rated), 2),
+            }
+        
+        return {
+            "total_predictions": len(history),
+            "categories": category_counts,
+            "ratings": rating_stats,
+        }
+    
+    return api
+
+
+def start_api(port: int = 8000):
+    """
+    Start the FastAPI server.
+    
+    The server binds to localhost (127.0.0.1) for security. If you need to
+    expose the API to external networks, implement proper authentication
+    and authorization first.
+    
+    Args:
+        port: Port to run the server on (default: 8000).
+    """
+    try:
+        import uvicorn
+    except ImportError:
+        print("Error: uvicorn is required to run the API server.")
+        print("Install with: pip install uvicorn")
+        return
+    
+    api = create_api()
+    print(f"🔮 Starting The Future Predictor API on http://localhost:{port}")
+    print("Press Ctrl+C to stop the server.")
+    uvicorn.run(api, host="127.0.0.1", port=port)
 
 
 if __name__ == "__main__":

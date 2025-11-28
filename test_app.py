@@ -31,6 +31,7 @@ from app import (
     format_for_sharing,
     get_themed_prediction,
     copy_to_clipboard,
+    create_api,
     PREDICTIONS,
     THEMES,
     HISTORY_DIR,
@@ -775,6 +776,160 @@ class TestCopyToClipboard(unittest.TestCase):
         # Should not raise an exception
         result = copy_to_clipboard("🔮 Test prediction with emojis 🌟")
         self.assertIsInstance(result, bool)
+
+
+# Iteration 7 Tests
+class TestSeasonalThemes(unittest.TestCase):
+    """Tests for seasonal prediction themes (Iteration 7)."""
+
+    def test_seasonal_themes_exist(self):
+        """Seasonal themes should exist in THEMES."""
+        from app import THEMES
+        seasonal_themes = ["spring", "summer", "fall", "winter"]
+        for theme in seasonal_themes:
+            self.assertIn(theme, THEMES)
+            self.assertGreater(len(THEMES[theme]), 0)
+
+    def test_spring_theme_categories(self):
+        """Spring theme should have expected categories."""
+        from app import THEMES
+        expected_categories = ["fortune", "health", "relationship"]
+        for category in expected_categories:
+            self.assertIn(category, THEMES["spring"])
+            self.assertGreater(len(THEMES["spring"][category]), 0)
+
+    def test_summer_theme_categories(self):
+        """Summer theme should have expected categories."""
+        from app import THEMES
+        expected_categories = ["fortune", "activity", "relationship"]
+        for category in expected_categories:
+            self.assertIn(category, THEMES["summer"])
+            self.assertGreater(len(THEMES["summer"][category]), 0)
+
+    def test_fall_theme_categories(self):
+        """Fall theme should have expected categories."""
+        from app import THEMES
+        expected_categories = ["fortune", "creative", "career"]
+        for category in expected_categories:
+            self.assertIn(category, THEMES["fall"])
+            self.assertGreater(len(THEMES["fall"][category]), 0)
+
+    def test_winter_theme_categories(self):
+        """Winter theme should have expected categories."""
+        from app import THEMES
+        expected_categories = ["fortune", "health", "relationship"]
+        for category in expected_categories:
+            self.assertIn(category, THEMES["winter"])
+            self.assertGreater(len(THEMES["winter"][category]), 0)
+
+    def test_predict_with_seasonal_theme(self):
+        """predict_the_future should work with seasonal themes."""
+        from app import predict_the_future
+        for theme in ["spring", "summer", "fall", "winter"]:
+            result = predict_the_future(theme=theme)
+            self.assertEqual(result["theme"], theme)
+            self.assertIn("prediction", result)
+            self.assertIn("category", result)
+
+
+class TestZodiacTheme(unittest.TestCase):
+    """Tests for zodiac prediction theme (Iteration 7)."""
+
+    def test_zodiac_theme_exists(self):
+        """Zodiac theme should exist in THEMES."""
+        from app import THEMES
+        self.assertIn("zodiac", THEMES)
+
+    def test_zodiac_signs_exist(self):
+        """All 12 zodiac signs should be in zodiac theme."""
+        from app import THEMES
+        zodiac_signs = [
+            "aries", "taurus", "gemini", "cancer",
+            "leo", "virgo", "libra", "scorpio",
+            "sagittarius", "capricorn", "aquarius", "pisces"
+        ]
+        for sign in zodiac_signs:
+            self.assertIn(sign, THEMES["zodiac"])
+            self.assertGreater(len(THEMES["zodiac"][sign]), 0)
+
+    def test_predict_with_zodiac_theme(self):
+        """predict_the_future should work with zodiac theme."""
+        from app import predict_the_future
+        result = predict_the_future(theme="zodiac")
+        self.assertEqual(result["theme"], "zodiac")
+        self.assertIn("prediction", result)
+        self.assertIn("category", result)
+
+    def test_zodiac_with_specific_sign(self):
+        """Zodiac theme should work with specific zodiac sign."""
+        from app import get_themed_prediction, THEMES
+        prediction, category = get_themed_prediction("zodiac", "leo")
+        self.assertEqual(category, "leo")
+        self.assertIn(prediction, THEMES["zodiac"]["leo"])
+
+
+class TestAPI(unittest.TestCase):
+    """Tests for REST API functionality (Iteration 7)."""
+
+    def test_create_api_returns_fastapi_app(self):
+        """create_api should return a FastAPI application."""
+        from app import create_api
+        try:
+            from fastapi import FastAPI
+            api = create_api()
+            self.assertIsInstance(api, FastAPI)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+    def test_api_has_predict_endpoint(self):
+        """API should have /predict endpoint."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [route.path for route in api.routes]
+            self.assertIn("/predict", routes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+    def test_api_has_themes_endpoint(self):
+        """API should have /themes endpoint."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [route.path for route in api.routes]
+            self.assertIn("/themes", routes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+    def test_api_has_categories_endpoint(self):
+        """API should have /categories endpoint."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [route.path for route in api.routes]
+            self.assertIn("/categories", routes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+    def test_api_has_history_endpoint(self):
+        """API should have /history endpoint."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [route.path for route in api.routes]
+            self.assertIn("/history", routes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+    def test_api_has_stats_endpoint(self):
+        """API should have /stats endpoint."""
+        from app import create_api
+        try:
+            api = create_api()
+            routes = [route.path for route in api.routes]
+            self.assertIn("/stats", routes)
+        except ImportError:
+            self.skipTest("FastAPI not installed")
 
 
 if __name__ == "__main__":
