@@ -1113,6 +1113,26 @@ class TestReminders(unittest.TestCase):
             pending = get_pending_reminders()
             self.assertEqual(len(pending), 0)
 
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_save_reminder_with_invalid_date(self, mock_dir, mock_file):
+        """Saving reminder with invalid date should default to tomorrow."""
+        temp_file = Path(self.temp_dir) / "reminders.json"
+        
+        with patch("app.REMINDERS_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            prediction = {
+                "id": 1,
+                "prediction": "Test prediction",
+                "category": "fortune",
+                "applies_to": "Monday, January 20, 2025",
+            }
+            # Use an invalid date format
+            reminder = save_reminder(prediction, "not-a-valid-date")
+            
+            # Should have a valid date format (YYYY-MM-DD)
+            self.assertRegex(reminder["remind_date"], r"^\d{4}-\d{2}-\d{2}$")
+
 
 if __name__ == "__main__":
     unittest.main()

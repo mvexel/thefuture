@@ -1200,12 +1200,19 @@ def save_reminder(prediction: dict, reminder_date: str = None) -> dict:
     # Parse the reminder date
     if reminder_date:
         try:
-            # Try to parse as ISO format
+            # Try to parse as ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
             remind_dt = datetime.fromisoformat(reminder_date)
             remind_date_str = remind_dt.strftime("%Y-%m-%d")
         except ValueError:
-            # Use as-is if it's already a date string
-            remind_date_str = reminder_date
+            # Try to parse as date-only string (YYYY-MM-DD)
+            try:
+                remind_dt = datetime.strptime(reminder_date, "%Y-%m-%d")
+                remind_date_str = remind_dt.strftime("%Y-%m-%d")
+            except ValueError:
+                # Invalid date format, default to tomorrow
+                print(f"Warning: Invalid date format '{reminder_date}'. Using tomorrow's date.")
+                remind_dt = datetime.now() + timedelta(days=1)
+                remind_date_str = remind_dt.strftime("%Y-%m-%d")
     else:
         # Extract date from applies_to field
         applies_to = prediction.get("applies_to", "")
