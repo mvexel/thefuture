@@ -46,22 +46,52 @@ If you read this, there is still room for improvement. Please continue the work.
 - Quiet mode for scripting
 - 7 prediction categories with diverse predictions
 
+### Iteration 3 (Completed)
+**Goal**: Add user feedback, analytics, and export capabilities
+**Changes**:
+- Added prediction IDs for tracking and feedback:
+  - Each prediction now has a unique sequential ID
+  - IDs are displayed in history and output
+- Added user feedback system:
+  - `--feedback <id> <rating>` - Rate a prediction (1-5 stars)
+  - `--show-rated` - View only rated predictions
+  - Ratings stored in history with timestamp
+- Added prediction analytics:
+  - `--stats` - Show prediction statistics
+  - Category distribution with percentages
+  - Rating distribution and averages
+  - Date range of predictions
+- Added export capabilities:
+  - `--export csv` - Export history as CSV
+  - `--export markdown` - Export history as formatted markdown
+- Added history management:
+  - `--clear-history` - Clear prediction history with confirmation
+- Added 8 new unit tests (23 total)
+
+**What works**:
+- Unique IDs for all predictions
+- Rating system with validation (1-5 stars)
+- Comprehensive statistics display
+- CSV and Markdown export formats
+- History clearing with confirmation prompt
+
 ---
 
 ## Ideas for Future Iterations
 
-### Iteration 3 Ideas
-- [ ] Add machine learning capabilities for personalized predictions
-- [ ] Learn from user feedback (thumbs up/down on predictions)
-- [ ] Add `--feedback` option to rate past predictions
-- [ ] Analyze prediction patterns from history
+### Iteration 4 Ideas
+- [ ] Time-of-day aware predictions (morning vs evening)
+- [ ] Day-of-week aware predictions (weekday vs weekend)
+- [ ] Learn from user preferences based on high-rated categories
+- [ ] Weighted prediction selection based on feedback
 
-### Iteration 4+ Ideas
+### Iteration 5+ Ideas
 - [ ] Web interface or API endpoint
 - [ ] Natural language processing for custom prediction requests
 - [ ] Time-series analysis for trend-based predictions
 - [ ] Integration with external data sources (news, events, etc.)
-- [ ] Export history to different formats (CSV, markdown)
+- [ ] Share predictions via social media or email
+- [ ] Prediction reminders and follow-ups
 
 ### Long-term Vision
 - Self-improving prediction accuracy through feedback loops
