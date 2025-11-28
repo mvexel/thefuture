@@ -32,10 +32,15 @@ from app import (
     get_themed_prediction,
     copy_to_clipboard,
     create_api,
+    load_reminders,
+    save_reminder,
+    get_pending_reminders,
+    acknowledge_reminder,
     PREDICTIONS,
     THEMES,
     HISTORY_DIR,
     HISTORY_FILE,
+    REMINDERS_FILE,
 )
 
 
@@ -930,6 +935,203 @@ class TestAPI(unittest.TestCase):
             self.assertIn("/stats", routes)
         except ImportError:
             self.skipTest("FastAPI not installed")
+
+
+# Iteration 8 Tests
+class TestReminders(unittest.TestCase):
+    """Tests for prediction reminders functionality (Iteration 8)."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_load_empty_reminders(self, mock_dir, mock_file):
+        """Loading reminders from non-existent file returns empty list."""
+        mock_file.exists.return_value = False
+        result = load_reminders()
+        self.assertEqual(result, [])
+
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_save_and_load_reminder(self, mock_dir, mock_file):
+        """Saving and loading reminders should work."""
+        temp_file = Path(self.temp_dir) / "reminders.json"
+        
+        with patch("app.REMINDERS_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            prediction = {
+                "id": 1,
+                "prediction": "Test prediction",
+                "category": "fortune",
+                "applies_to": "Monday, January 20, 2025",
+            }
+            reminder = save_reminder(prediction)
+            
+            self.assertIn("reminder_id", reminder)
+            self.assertEqual(reminder["reminder_id"], 1)
+            self.assertEqual(reminder["prediction"], "Test prediction")
+            self.assertIn("remind_date", reminder)
+            
+            reminders = load_reminders()
+            self.assertEqual(len(reminders), 1)
+
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_save_reminder_with_custom_date(self, mock_dir, mock_file):
+        """Saving reminder with custom date should work."""
+        temp_file = Path(self.temp_dir) / "reminders.json"
+        
+        with patch("app.REMINDERS_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            prediction = {
+                "id": 1,
+                "prediction": "Test prediction",
+                "category": "fortune",
+                "applies_to": "Monday, January 20, 2025",
+            }
+            reminder = save_reminder(prediction, "2025-12-25")
+            
+            self.assertEqual(reminder["remind_date"], "2025-12-25")
+
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_sequential_reminder_ids(self, mock_dir, mock_file):
+        """Multiple reminders should have sequential IDs."""
+        temp_file = Path(self.temp_dir) / "reminders.json"
+        
+        with patch("app.REMINDERS_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            for i in range(3):
+                prediction = {
+                    "id": i + 1,
+                    "prediction": f"Test {i}",
+                    "category": "test",
+                    "applies_to": "Monday, January 20, 2025",
+                }
+                save_reminder(prediction)
+            
+            reminders = load_reminders()
+            self.assertEqual(len(reminders), 3)
+            self.assertEqual(reminders[0]["reminder_id"], 1)
+            self.assertEqual(reminders[1]["reminder_id"], 2)
+            self.assertEqual(reminders[2]["reminder_id"], 3)
+
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_get_pending_reminders(self, mock_dir, mock_file):
+        """Getting pending reminders should work."""
+        temp_file = Path(self.temp_dir) / "reminders.json"
+        
+        with patch("app.REMINDERS_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            # Create reminders: one past, one future
+            reminders = [
+                {
+                    "reminder_id": 1,
+                    "prediction": "Past reminder",
+                    "category": "test",
+                    "remind_date": "2020-01-01",
+                    "acknowledged": False,
+                },
+                {
+                    "reminder_id": 2,
+                    "prediction": "Future reminder",
+                    "category": "test",
+                    "remind_date": "2099-01-01",
+                    "acknowledged": False,
+                },
+            ]
+            with open(temp_file, "w") as f:
+                json.dump(reminders, f)
+            
+            pending = get_pending_reminders()
+            
+            # Only the past reminder should be pending
+            self.assertEqual(len(pending), 1)
+            self.assertEqual(pending[0]["reminder_id"], 1)
+
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_acknowledge_reminder(self, mock_dir, mock_file):
+        """Acknowledging a reminder should work."""
+        temp_file = Path(self.temp_dir) / "reminders.json"
+        
+        with patch("app.REMINDERS_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            prediction = {
+                "id": 1,
+                "prediction": "Test prediction",
+                "category": "fortune",
+                "applies_to": "Monday, January 20, 2025",
+            }
+            save_reminder(prediction)
+            
+            result = acknowledge_reminder(1)
+            self.assertTrue(result)
+            
+            reminders = load_reminders()
+            self.assertTrue(reminders[0]["acknowledged"])
+            self.assertIn("acknowledged_at", reminders[0])
+
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_acknowledge_nonexistent_reminder(self, mock_dir, mock_file):
+        """Acknowledging non-existent reminder should fail."""
+        temp_file = Path(self.temp_dir) / "reminders.json"
+        
+        with patch("app.REMINDERS_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            result = acknowledge_reminder(999)
+            self.assertFalse(result)
+
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_acknowledged_reminders_not_pending(self, mock_dir, mock_file):
+        """Acknowledged reminders should not appear in pending."""
+        temp_file = Path(self.temp_dir) / "reminders.json"
+        
+        with patch("app.REMINDERS_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            reminders = [
+                {
+                    "reminder_id": 1,
+                    "prediction": "Acknowledged reminder",
+                    "category": "test",
+                    "remind_date": "2020-01-01",
+                    "acknowledged": True,
+                },
+            ]
+            with open(temp_file, "w") as f:
+                json.dump(reminders, f)
+            
+            pending = get_pending_reminders()
+            self.assertEqual(len(pending), 0)
+
+    @patch("app.REMINDERS_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_save_reminder_with_invalid_date(self, mock_dir, mock_file):
+        """Saving reminder with invalid date should default to tomorrow."""
+        temp_file = Path(self.temp_dir) / "reminders.json"
+        
+        with patch("app.REMINDERS_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            prediction = {
+                "id": 1,
+                "prediction": "Test prediction",
+                "category": "fortune",
+                "applies_to": "Monday, January 20, 2025",
+            }
+            # Use an invalid date format
+            reminder = save_reminder(prediction, "not-a-valid-date")
+            
+            # Should have a valid date format (YYYY-MM-DD)
+            self.assertRegex(reminder["remind_date"], r"^\d{4}-\d{2}-\d{2}$")
 
 
 if __name__ == "__main__":
