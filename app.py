@@ -1648,6 +1648,10 @@ def start_api(port: int = 8000):
     """
     Start the FastAPI server.
     
+    The server binds to localhost (127.0.0.1) for security. If you need to
+    expose the API to external networks, implement proper authentication
+    and authorization first.
+    
     Args:
         port: Port to run the server on (default: 8000).
     """
