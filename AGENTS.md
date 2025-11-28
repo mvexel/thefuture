@@ -211,18 +211,47 @@ If you read this, there is still room for improvement. Please continue the work.
 - Automatic display of due reminders on app startup
 - All existing features continue to work unchanged
 
+### Iteration 9 (Completed)
+**Goal**: Add custom themes to let users create their own prediction sets
+**Changes**:
+- Added custom theme storage:
+  - Custom themes stored in `~/.thefuture/themes.json`
+  - Custom themes work alongside built-in themes
+- Added theme creation:
+  - `--add-theme` - Interactive theme creation wizard
+  - Validates theme names (alphanumeric, underscores, hyphens)
+  - Validates categories and predictions
+- Added theme management:
+  - `--list-themes` - Show all built-in and custom themes
+  - `--delete-theme NAME` - Delete a custom theme
+- Added theme import/export:
+  - `--import-theme FILE` - Import theme from JSON file
+  - `--export-theme NAME` - Export any theme to JSON
+- Updated `--theme` to accept any theme name (not just built-in choices)
+- Updated version to Iteration 9
+- Added 17 new unit tests (98 total)
+
+**What works**:
+- Create custom themes interactively
+- Import themes from JSON files
+- Export themes to JSON format
+- Delete custom themes
+- List all available themes
+- Use custom themes with `--theme` flag
+- All existing features continue to work unchanged
+
 ---
 
 ## Ideas for Future Iterations
 
-### Iteration 9 Ideas
+### Iteration 10 Ideas
 - [ ] Natural language processing for custom prediction requests
 - [ ] Time-series analysis for trend-based predictions
 - [ ] Integration with external data sources (news, events, etc.)
-- [ ] Theme customization (user-defined themes)
 - [ ] Web frontend for the API
 - [ ] Rate limiting and authentication for API
 - [ ] Reminder notifications via system notifications
+- [ ] Theme sharing (upload/download from community)
 
 ### Long-term Vision
 - Self-improving prediction accuracy through feedback loops

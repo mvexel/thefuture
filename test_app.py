@@ -36,11 +36,20 @@ from app import (
     save_reminder,
     get_pending_reminders,
     acknowledge_reminder,
+    # Iteration 9 imports
+    load_custom_themes,
+    save_custom_themes,
+    get_all_themes,
+    add_custom_theme,
+    delete_custom_theme,
+    import_theme_from_file,
+    export_theme_to_json,
     PREDICTIONS,
     THEMES,
     HISTORY_DIR,
     HISTORY_FILE,
     REMINDERS_FILE,
+    CUSTOM_THEMES_FILE,
 )
 
 
@@ -1132,6 +1141,310 @@ class TestReminders(unittest.TestCase):
             
             # Should have a valid date format (YYYY-MM-DD)
             self.assertRegex(reminder["remind_date"], r"^\d{4}-\d{2}-\d{2}$")
+
+
+# Iteration 9 Tests
+class TestCustomThemes(unittest.TestCase):
+    """Tests for custom themes functionality (Iteration 9)."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_load_empty_custom_themes(self, mock_dir, mock_file):
+        """Loading custom themes from non-existent file returns empty dict."""
+        from app import load_custom_themes
+        mock_file.exists.return_value = False
+        result = load_custom_themes()
+        self.assertEqual(result, {})
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_save_and_load_custom_themes(self, mock_dir, mock_file):
+        """Saving and loading custom themes should work."""
+        from app import save_custom_themes, load_custom_themes
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            themes = {
+                "test_theme": {
+                    "fortune": ["Test prediction 1", "Test prediction 2"]
+                }
+            }
+            save_custom_themes(themes)
+            
+            loaded = load_custom_themes()
+            self.assertEqual(loaded, themes)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_get_all_themes(self, mock_dir, mock_file):
+        """get_all_themes should return built-in and custom themes."""
+        from app import get_all_themes, save_custom_themes, THEMES
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            custom = {
+                "my_theme": {
+                    "custom_cat": ["Custom prediction"]
+                }
+            }
+            save_custom_themes(custom)
+            
+            all_themes = get_all_themes()
+            
+            # Should have all built-in themes
+            for theme_name in THEMES.keys():
+                self.assertIn(theme_name, all_themes)
+            
+            # Should have custom theme
+            self.assertIn("my_theme", all_themes)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_add_custom_theme(self, mock_dir, mock_file):
+        """Adding a custom theme should work."""
+        from app import add_custom_theme, load_custom_themes
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            categories = {
+                "fortune": ["Test prediction 1"],
+                "advice": ["Test advice 1", "Test advice 2"]
+            }
+            result = add_custom_theme("my_custom", categories)
+            
+            self.assertTrue(result)
+            loaded = load_custom_themes()
+            self.assertIn("my_custom", loaded)
+            self.assertEqual(loaded["my_custom"], categories)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_add_custom_theme_cannot_overwrite_builtin(self, mock_dir, mock_file):
+        """Cannot add a custom theme with a built-in theme name."""
+        from app import add_custom_theme
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            categories = {"fortune": ["Test prediction"]}
+            result = add_custom_theme("zodiac", categories)  # zodiac is built-in
+            
+            self.assertFalse(result)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_delete_custom_theme(self, mock_dir, mock_file):
+        """Deleting a custom theme should work."""
+        from app import add_custom_theme, delete_custom_theme, load_custom_themes
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            # First add a theme
+            add_custom_theme("to_delete", {"cat": ["prediction"]})
+            
+            # Delete it
+            result = delete_custom_theme("to_delete")
+            
+            self.assertTrue(result)
+            loaded = load_custom_themes()
+            self.assertNotIn("to_delete", loaded)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_delete_builtin_theme_fails(self, mock_dir, mock_file):
+        """Cannot delete a built-in theme."""
+        from app import delete_custom_theme
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            result = delete_custom_theme("zodiac")
+            self.assertFalse(result)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_get_themed_prediction_with_custom_theme(self, mock_dir, mock_file):
+        """get_themed_prediction should work with custom themes."""
+        from app import add_custom_theme, get_themed_prediction
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            categories = {
+                "test_cat": ["Custom prediction 1", "Custom prediction 2"]
+            }
+            add_custom_theme("my_theme", categories)
+            
+            prediction, category = get_themed_prediction("my_theme")
+            
+            self.assertIn(prediction, categories["test_cat"])
+            self.assertEqual(category, "test_cat")
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_predict_the_future_with_custom_theme(self, mock_dir, mock_file):
+        """predict_the_future should work with custom themes."""
+        from app import add_custom_theme, predict_the_future
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            categories = {
+                "custom_fortune": ["A custom fortune awaits you."]
+            }
+            add_custom_theme("my_custom_theme", categories)
+            
+            result = predict_the_future(theme="my_custom_theme")
+            
+            self.assertEqual(result["theme"], "my_custom_theme")
+            self.assertIn(result["prediction"], categories["custom_fortune"])
+
+
+class TestImportExportThemes(unittest.TestCase):
+    """Tests for theme import/export functionality (Iteration 9)."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_import_theme_from_file(self, mock_dir, mock_file):
+        """Importing a theme from a JSON file should work."""
+        from app import import_theme_from_file, load_custom_themes
+        themes_file = Path(self.temp_dir) / "themes.json"
+        import_file = Path(self.temp_dir) / "import.json"
+        
+        # Create import file
+        import_data = {
+            "name": "imported_theme",
+            "categories": {
+                "imported_cat": ["Imported prediction 1", "Imported prediction 2"]
+            }
+        }
+        with open(import_file, "w") as f:
+            json.dump(import_data, f)
+        
+        with patch("app.CUSTOM_THEMES_FILE", themes_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            result = import_theme_from_file(str(import_file))
+            
+            self.assertTrue(result)
+            loaded = load_custom_themes()
+            self.assertIn("imported_theme", loaded)
+
+    def test_import_theme_file_not_found(self):
+        """Importing from non-existent file should fail."""
+        from app import import_theme_from_file
+        result = import_theme_from_file("/nonexistent/path/file.json")
+        self.assertFalse(result)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_export_theme_to_json(self, mock_dir, mock_file):
+        """Exporting a theme to JSON should work."""
+        from app import export_theme_to_json
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)), \
+             patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            result = export_theme_to_json("zodiac")
+            
+            self.assertTrue(result)
+            output = mock_stdout.getvalue()
+            parsed = json.loads(output)
+            self.assertEqual(parsed["name"], "zodiac")
+            self.assertIn("categories", parsed)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_export_nonexistent_theme_fails(self, mock_dir, mock_file):
+        """Exporting a non-existent theme should fail."""
+        from app import export_theme_to_json
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            result = export_theme_to_json("nonexistent_theme")
+            self.assertFalse(result)
+
+
+class TestThemeValidation(unittest.TestCase):
+    """Tests for theme validation (Iteration 9)."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_add_theme_empty_name_fails(self, mock_dir, mock_file):
+        """Adding a theme with empty name should fail."""
+        from app import add_custom_theme
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            result = add_custom_theme("", {"cat": ["pred"]})
+            self.assertFalse(result)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_add_theme_empty_categories_fails(self, mock_dir, mock_file):
+        """Adding a theme with empty categories should fail."""
+        from app import add_custom_theme
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            result = add_custom_theme("my_theme", {})
+            self.assertFalse(result)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_add_theme_empty_predictions_fails(self, mock_dir, mock_file):
+        """Adding a theme with empty predictions list should fail."""
+        from app import add_custom_theme
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            result = add_custom_theme("my_theme", {"cat": []})
+            self.assertFalse(result)
+
+    @patch("app.CUSTOM_THEMES_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_add_theme_invalid_name_chars_fails(self, mock_dir, mock_file):
+        """Adding a theme with invalid characters should fail."""
+        from app import add_custom_theme
+        temp_file = Path(self.temp_dir) / "themes.json"
+        
+        with patch("app.CUSTOM_THEMES_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            # Names with special characters should fail
+            result = add_custom_theme("my theme!", {"cat": ["pred"]})
+            self.assertFalse(result)
 
 
 if __name__ == "__main__":
