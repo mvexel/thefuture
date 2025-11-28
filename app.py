@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-The Future Predictor - Iteration 7
+The Future Predictor - Iteration 8
 
 A playful prediction system that generates fortunes and predictions.
-This iteration adds a REST API endpoint and new themes (seasonal and zodiac).
+This iteration adds prediction reminders to help you follow up on your fortunes.
 """
 
 import argparse
@@ -413,6 +413,7 @@ THEMES = {
 # History file location
 HISTORY_DIR = Path.home() / ".thefuture"
 HISTORY_FILE = HISTORY_DIR / "history.json"
+REMINDERS_FILE = HISTORY_DIR / "reminders.json"
 
 
 def get_themed_prediction(theme: str, category: str = None) -> tuple[str, str]:
@@ -1155,6 +1156,291 @@ def clear_history() -> bool:
         return False
 
 
+# Reminder functions (Iteration 8)
+
+def load_reminders() -> list:
+    """
+    Load reminders from file.
+    
+    Returns:
+        List of reminders.
+    """
+    if not REMINDERS_FILE.exists():
+        return []
+    
+    try:
+        with open(REMINDERS_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return []
+
+
+def save_reminder(prediction: dict, reminder_date: str = None) -> dict:
+    """
+    Save a prediction as a reminder.
+    
+    Args:
+        prediction: The prediction dictionary to save as a reminder.
+        reminder_date: Optional specific date for the reminder (ISO format).
+                       If not provided, uses the prediction's "applies_to" date.
+    
+    Returns:
+        The reminder dictionary that was saved.
+    """
+    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    
+    reminders = load_reminders()
+    
+    # Assign a reminder ID
+    max_id = 0
+    for r in reminders:
+        if "reminder_id" in r and isinstance(r["reminder_id"], int):
+            max_id = max(max_id, r["reminder_id"])
+    
+    # Parse the reminder date
+    if reminder_date:
+        try:
+            # Try to parse as ISO format
+            remind_dt = datetime.fromisoformat(reminder_date)
+            remind_date_str = remind_dt.strftime("%Y-%m-%d")
+        except ValueError:
+            # Use as-is if it's already a date string
+            remind_date_str = reminder_date
+    else:
+        # Extract date from applies_to field
+        applies_to = prediction.get("applies_to", "")
+        try:
+            remind_dt = datetime.strptime(applies_to, "%A, %B %d, %Y")
+            remind_date_str = remind_dt.strftime("%Y-%m-%d")
+        except ValueError:
+            # Default to tomorrow if parsing fails
+            remind_dt = datetime.now() + timedelta(days=1)
+            remind_date_str = remind_dt.strftime("%Y-%m-%d")
+    
+    reminder = {
+        "reminder_id": max_id + 1,
+        "prediction_id": prediction.get("id"),
+        "prediction": prediction.get("prediction"),
+        "category": prediction.get("category"),
+        "remind_date": remind_date_str,
+        "created_at": datetime.now().isoformat(),
+        "acknowledged": False,
+    }
+    
+    reminders.append(reminder)
+    
+    with open(REMINDERS_FILE, "w") as f:
+        json.dump(reminders, f, indent=2)
+    
+    return reminder
+
+
+def get_pending_reminders() -> list:
+    """
+    Get reminders that are due (today or past due).
+    
+    Returns:
+        List of pending reminders.
+    """
+    reminders = load_reminders()
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    pending = []
+    for reminder in reminders:
+        if not reminder.get("acknowledged", False):
+            remind_date = reminder.get("remind_date", "")
+            if remind_date and remind_date <= today:
+                pending.append(reminder)
+    
+    return pending
+
+
+def display_pending_reminders() -> bool:
+    """
+    Display any pending reminders.
+    
+    Returns:
+        True if there were pending reminders, False otherwise.
+    """
+    pending = get_pending_reminders()
+    
+    if not pending:
+        return False
+    
+    print()
+    print("=" * 50)
+    print("  ⏰ PREDICTION REMINDERS ⏰")
+    print("=" * 50)
+    print()
+    
+    for reminder in pending:
+        remind_date = reminder.get("remind_date", "")
+        category = reminder.get("category", "unknown").title()
+        prediction = reminder.get("prediction", "")
+        reminder_id = reminder.get("reminder_id", "N/A")
+        
+        # Check if overdue
+        today = datetime.now().strftime("%Y-%m-%d")
+        if remind_date < today:
+            status = "⚠️  OVERDUE"
+        else:
+            status = "📅 TODAY"
+        
+        print(f"[{status}] Reminder #{reminder_id} ({category})")
+        print(f"   🔮 {prediction}")
+        print(f"   Due: {remind_date}")
+        print()
+    
+    print(f"💡 Use --acknowledge <id> to dismiss a reminder.")
+    print(f"💡 Use --list-reminders to see all reminders.")
+    print("-" * 50)
+    print()
+    
+    return True
+
+
+def display_reminders(show_all: bool = False) -> None:
+    """
+    Display all reminders.
+    
+    Args:
+        show_all: If True, show acknowledged reminders too.
+    """
+    reminders = load_reminders()
+    
+    if not reminders:
+        print("No reminders found.")
+        print("Use --remind when generating a prediction to create a reminder.")
+        return
+    
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    print()
+    title = "all reminders" if show_all else "pending reminders"
+    print(f"⏰ Showing {title}:")
+    print()
+    
+    displayed = 0
+    for reminder in reminders:
+        if not show_all and reminder.get("acknowledged", False):
+            continue
+        
+        displayed += 1
+        remind_date = reminder.get("remind_date", "")
+        category = reminder.get("category", "unknown").title()
+        prediction = reminder.get("prediction", "")
+        reminder_id = reminder.get("reminder_id", "N/A")
+        acknowledged = reminder.get("acknowledged", False)
+        
+        # Determine status
+        if acknowledged:
+            status = "✅ DONE"
+        elif remind_date < today:
+            status = "⚠️  OVERDUE"
+        elif remind_date == today:
+            status = "📅 TODAY"
+        else:
+            status = f"🗓️  {remind_date}"
+        
+        print(f"[{status}] Reminder #{reminder_id}")
+        print(f"   Category: {category}")
+        print(f"   🔮 {prediction}")
+        if not acknowledged:
+            print(f"   Due: {remind_date}")
+        print()
+    
+    if displayed == 0:
+        print("No pending reminders. Great job!")
+        print("Use --list-reminders --all to see acknowledged reminders.")
+    else:
+        print(f"Total: {displayed} reminder(s)")
+        if not show_all:
+            print("Use --list-reminders --all to include acknowledged reminders.")
+
+
+def acknowledge_reminder(reminder_id: int) -> bool:
+    """
+    Acknowledge (dismiss) a reminder.
+    
+    Args:
+        reminder_id: The ID of the reminder to acknowledge.
+    
+    Returns:
+        True if successful, False otherwise.
+    """
+    reminders = load_reminders()
+    
+    for reminder in reminders:
+        if reminder.get("reminder_id") == reminder_id:
+            if reminder.get("acknowledged", False):
+                print(f"Reminder #{reminder_id} was already acknowledged.")
+                return False
+            
+            reminder["acknowledged"] = True
+            reminder["acknowledged_at"] = datetime.now().isoformat()
+            
+            with open(REMINDERS_FILE, "w") as f:
+                json.dump(reminders, f, indent=2)
+            
+            print(f"✅ Reminder #{reminder_id} acknowledged!")
+            print(f"   \"{reminder.get('prediction', '')}\"")
+            return True
+    
+    print(f"Error: Reminder #{reminder_id} not found.")
+    print("Use --list-reminders to see available reminders.")
+    return False
+
+
+def clear_reminders(clear_all: bool = False) -> bool:
+    """
+    Clear reminders (acknowledged ones by default, or all if specified).
+    
+    Args:
+        clear_all: If True, clear all reminders. Otherwise, only acknowledged ones.
+    
+    Returns:
+        True if reminders were cleared, False otherwise.
+    """
+    reminders = load_reminders()
+    
+    if not reminders:
+        print("No reminders to clear.")
+        return False
+    
+    if clear_all:
+        count = len(reminders)
+        print(f"⚠️  This will delete ALL {count} reminder(s).")
+    else:
+        acknowledged = [r for r in reminders if r.get("acknowledged", False)]
+        count = len(acknowledged)
+        if count == 0:
+            print("No acknowledged reminders to clear.")
+            print("Use --clear-reminders --all to clear all reminders.")
+            return False
+        print(f"⚠️  This will delete {count} acknowledged reminder(s).")
+    
+    print("This action cannot be undone.")
+    
+    try:
+        response = input("Are you sure? (yes/no): ").strip().lower()
+    except EOFError:
+        print("\nOperation cancelled.")
+        return False
+    
+    if response == "yes":
+        if clear_all:
+            REMINDERS_FILE.unlink(missing_ok=True)
+        else:
+            remaining = [r for r in reminders if not r.get("acknowledged", False)]
+            with open(REMINDERS_FILE, "w") as f:
+                json.dump(remaining, f, indent=2)
+        print(f"✅ Cleared {count} reminder(s).")
+        return True
+    else:
+        print("Operation cancelled.")
+        return False
+
+
 def format_for_sharing(prediction: dict, format_type: str = "text") -> str:
     """
     Format a prediction for sharing on social media.
@@ -1214,6 +1500,10 @@ Examples:
   python app.py --share --copy       # Share and copy to clipboard
   python app.py --api                # Start the REST API server
   python app.py --api --port 3000    # Start API on custom port
+  python app.py --remind             # Set reminder for prediction's apply date
+  python app.py --remind 2025-12-25  # Set reminder for specific date
+  python app.py --list-reminders     # View pending reminders
+  python app.py --acknowledge 1      # Dismiss reminder #1
         """,
     )
     
@@ -1344,6 +1634,35 @@ Examples:
         default=8000,
         help="Port for the API server (default: 8000)",
     )
+    # Iteration 8: Reminder arguments
+    parser.add_argument(
+        "--remind",
+        nargs="?",
+        const="auto",
+        metavar="DATE",
+        help="Set a reminder for this prediction (optional date: YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--list-reminders",
+        action="store_true",
+        help="Show pending reminders",
+    )
+    parser.add_argument(
+        "--acknowledge",
+        type=int,
+        metavar="ID",
+        help="Acknowledge (dismiss) a reminder by ID",
+    )
+    parser.add_argument(
+        "--clear-reminders",
+        action="store_true",
+        help="Clear acknowledged reminders (use --all for all reminders)",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Include all items (with --list-reminders or --clear-reminders)",
+    )
     
     return parser.parse_args()
 
@@ -1360,6 +1679,19 @@ def main():
     # Handle clear history (must be first as it modifies history)
     if args.clear_history:
         clear_history()
+        return
+    
+    # Handle reminder-related commands (Iteration 8)
+    if args.acknowledge:
+        acknowledge_reminder(args.acknowledge)
+        return
+    
+    if args.list_reminders:
+        display_reminders(show_all=args.all)
+        return
+    
+    if args.clear_reminders:
+        clear_reminders(clear_all=args.all)
         return
     
     # Handle feedback
@@ -1382,6 +1714,9 @@ def main():
     if args.history or args.show_rated:
         display_history(show_rated_only=args.show_rated)
         return
+    
+    # Check for pending reminders before generating predictions
+    display_pending_reminders()
     
     predictions = []
     for _ in range(args.count):
@@ -1440,7 +1775,7 @@ def main():
     
     # Standard formatted output
     print("=" * 50)
-    print("  🔮 THE FUTURE PREDICTOR - Iteration 7 🔮")
+    print("  🔮 THE FUTURE PREDICTOR - Iteration 8 🔮")
     print("=" * 50)
     
     # Show mode indicators
@@ -1473,13 +1808,21 @@ def main():
         print()
         print(f"🌟 {result['prediction']}")
     
+    # Handle reminder creation (Iteration 8)
+    if args.remind:
+        for pred in predictions:
+            reminder_date = args.remind if args.remind != "auto" else None
+            reminder = save_reminder(pred, reminder_date)
+            print()
+            print(f"⏰ Reminder #{reminder['reminder_id']} set for {reminder['remind_date']}")
+    
     print()
     print("-" * 50)
     print("Use --help to see available options.")
     print("Use --history to view past predictions.")
     print("Use --feedback <id> <rating> to rate a prediction.")
-    print("Use --theme <name> for themed predictions (e.g., zodiac, seasonal).")
-    print("Use --api to start the REST API server.")
+    print("Use --remind to set a reminder for your prediction.")
+    print("Use --list-reminders to view pending reminders.")
 
 
 def create_api():
@@ -1498,7 +1841,7 @@ def create_api():
     api = FastAPI(
         title="The Future Predictor API",
         description="🔮 A playful prediction system that generates fortunes and predictions.",
-        version="Iteration 7",
+        version="Iteration 8",
     )
     
     class PredictionResponse(BaseModel):
@@ -1521,7 +1864,7 @@ def create_api():
     @api.get("/", response_model=HealthResponse, tags=["Health"])
     def health_check():
         """Check if the API is running."""
-        return {"status": "ok", "version": "Iteration 7"}
+        return {"status": "ok", "version": "Iteration 8"}
     
     @api.get("/predict", response_model=PredictionResponse, tags=["Predictions"])
     def get_prediction_endpoint(

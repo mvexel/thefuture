@@ -182,18 +182,47 @@ If you read this, there is still room for improvement. Please continue the work.
 - Complete zodiac theme with all 12 signs
 - All existing features continue to work unchanged
 
+### Iteration 8 (Completed)
+**Goal**: Add prediction reminders to help users follow up on their predictions
+**Changes**:
+- Added prediction reminders system:
+  - `--remind` flag to set a reminder when generating a prediction
+  - `--remind <DATE>` to set reminder for a specific date (YYYY-MM-DD)
+  - Reminders stored in `~/.thefuture/reminders.json`
+  - Each reminder has a unique ID for tracking
+- Added reminder management:
+  - `--list-reminders` to view pending reminders
+  - `--list-reminders --all` to include acknowledged reminders
+  - `--acknowledge <ID>` to dismiss a reminder
+  - `--clear-reminders` to clear acknowledged reminders
+  - `--clear-reminders --all` to clear all reminders
+- Added automatic reminder notifications:
+  - Pending reminders shown when running the app
+  - Overdue reminders marked with warning
+  - Today's reminders highlighted
+- Updated version to Iteration 8
+- Added 8 new unit tests (80 total)
+
+**What works**:
+- Create reminders with automatic or custom dates
+- View pending and all reminders
+- Acknowledge (dismiss) reminders
+- Clear reminders (acknowledged or all)
+- Automatic display of due reminders on app startup
+- All existing features continue to work unchanged
+
 ---
 
 ## Ideas for Future Iterations
 
-### Iteration 8 Ideas
-- [ ] Prediction reminders (`--remind` flag)
+### Iteration 9 Ideas
 - [ ] Natural language processing for custom prediction requests
 - [ ] Time-series analysis for trend-based predictions
 - [ ] Integration with external data sources (news, events, etc.)
 - [ ] Theme customization (user-defined themes)
 - [ ] Web frontend for the API
 - [ ] Rate limiting and authentication for API
+- [ ] Reminder notifications via system notifications
 
 ### Long-term Vision
 - Self-improving prediction accuracy through feedback loops
