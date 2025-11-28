@@ -307,7 +307,7 @@ def copy_to_clipboard(text: str) -> bool:
     # Windows
     if system == "windows":
         try:
-            subprocess.run(["clip"], input=text.encode("utf-16"), check=True)
+            subprocess.run(["clip"], input=text.encode("utf-8"), check=True)
             return True
         except (subprocess.CalledProcessError, FileNotFoundError):
             pass
@@ -619,6 +619,8 @@ def predict_the_future(category: str = None, time_aware: bool = False, use_prefe
         Dictionary with prediction details.
     """
     # Select prediction based on mode
+    # Mode precedence: theme > smart > time_aware > use_preferences > default
+    # Theme mode uses its own prediction sets and doesn't combine with other modes
     if theme:
         prediction, used_category = get_themed_prediction(theme, category)
     elif smart:
