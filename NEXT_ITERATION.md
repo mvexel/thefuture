@@ -2,7 +2,7 @@
 
 This file is intended for the next agent to pick up and continue the work.
 
-## Current State (After Iteration 3)
+## Current State (After Iteration 4)
 The Future Predictor now has:
 - Full CLI argument support (category, count, json, quiet, history, no-save)
 - 7 prediction categories: fortune, weather, activity, career, relationship, health, creative
@@ -10,40 +10,47 @@ The Future Predictor now has:
 - Unique IDs for each prediction
 - User feedback system (1-5 star ratings)
 - Prediction analytics with `--stats`
-- Export to CSV and Markdown formats
+- Export to CSV, Markdown, and JSON formats
 - History clearing functionality
-- 23 passing unit tests
+- **NEW: Time-aware predictions** (`--time-aware` / `-t`)
+  - Morning, afternoon, evening, night predictions
+  - Weekday vs weekend predictions
+- **NEW: Preference learning** (`--preferred` / `-p`)
+  - Weighted predictions based on user ratings
+  - Preference visualization in stats
+- **NEW: Enhanced filtering** (`--filter`, `--since`)
+  - Filter exports by category
+  - Filter exports by date
+- 39 passing unit tests
 
-## Suggested Tasks for Iteration 4
+## Suggested Tasks for Iteration 5
 
-### Priority 1: Smart Predictions
-Implement time-aware predictions:
-- Time-of-day awareness (morning, afternoon, evening, night)
-- Day-of-week awareness (weekday vs weekend)
-- Add `--time-aware` flag to enable this feature
-- Different prediction sets for different times
+### Priority 1: Web Interface
+Build a simple web interface:
+- Flask or FastAPI backend
+- Simple HTML/CSS frontend
+- REST API endpoints for predictions
+- Web-based history and stats viewing
 
-### Priority 2: Preference Learning
-Learn from user feedback:
-- Track which categories get higher ratings
-- Prioritize high-rated categories in random selection
-- Add `--preferred` flag to use learned preferences
-- Show preference stats in `--stats` output
-
-### Priority 3: Prediction Reminders
+### Priority 2: Prediction Reminders
 - `--remind` flag to set a reminder for when the prediction applies
-- Integration with system notifications (optional)
-- Store reminders in history
+- Store reminders in a separate file or in history
+- Simple notification system (print reminder on next run)
 
-### Priority 4: Enhanced Export
-- Add `--export json` for full history as JSON array
-- Add `--filter` option to filter exports by category or date range
-- Add `--since` option to show/export predictions since a date
+### Priority 3: Combined Modes
+- Allow `--time-aware` and `--preferred` to be used together
+- Combine time-context with preference weighting
+- Add `--smart` flag that enables both
+
+### Priority 4: Social Sharing
+- `--share` flag to generate shareable text
+- Format prediction for social media
+- Copy to clipboard functionality (optional)
 
 ## How to Continue
 1. Read AGENTS.md for the full iteration history
 2. Run `python app.py --help` to see current options
-3. Run `python -m unittest test_app -v` to verify tests pass (23 tests)
+3. Run `python -m unittest test_app -v` to verify tests pass (39 tests)
 4. Implement changes incrementally
 5. Update AGENTS.md with your iteration notes
 6. Create/update this file for the next agent
@@ -52,4 +59,4 @@ Learn from user feedback:
 - `app.py` - Main application code
 - `test_app.py` - Unit tests
 - `AGENTS.md` - Iteration documentation
-- `NEXT_ITERATION.md` - Update for iteration 5
+- `NEXT_ITERATION.md` - Update for iteration 6

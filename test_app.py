@@ -20,6 +20,12 @@ from app import (
     add_feedback,
     show_stats,
     export_history,
+    filter_history,
+    get_time_of_day,
+    get_day_type,
+    get_time_aware_prediction,
+    get_preferred_categories,
+    get_preferred_prediction,
     PREDICTIONS,
     HISTORY_DIR,
     HISTORY_FILE,
@@ -352,6 +358,215 @@ class TestExport(unittest.TestCase):
             self.assertIn("# Prediction History", output)
             self.assertIn("## Fortune", output)
             self.assertIn("Test prediction", output)
+
+
+# Iteration 4 Tests
+class TestTimeAwareness(unittest.TestCase):
+    """Tests for time-aware prediction functionality."""
+
+    def test_get_time_of_day_morning(self):
+        """Morning hours should return 'morning'."""
+        from app import get_time_of_day
+        morning = datetime(2025, 1, 15, 8, 0, 0)
+        self.assertEqual(get_time_of_day(morning), "morning")
+
+    def test_get_time_of_day_afternoon(self):
+        """Afternoon hours should return 'afternoon'."""
+        from app import get_time_of_day
+        afternoon = datetime(2025, 1, 15, 14, 0, 0)
+        self.assertEqual(get_time_of_day(afternoon), "afternoon")
+
+    def test_get_time_of_day_evening(self):
+        """Evening hours should return 'evening'."""
+        from app import get_time_of_day
+        evening = datetime(2025, 1, 15, 19, 0, 0)
+        self.assertEqual(get_time_of_day(evening), "evening")
+
+    def test_get_time_of_day_night(self):
+        """Night hours should return 'night'."""
+        from app import get_time_of_day
+        night = datetime(2025, 1, 15, 23, 0, 0)
+        self.assertEqual(get_time_of_day(night), "night")
+        early_night = datetime(2025, 1, 15, 3, 0, 0)
+        self.assertEqual(get_time_of_day(early_night), "night")
+
+    def test_get_day_type_weekday(self):
+        """Monday-Friday should return 'weekday'."""
+        from app import get_day_type
+        monday = datetime(2025, 1, 13, 12, 0, 0)  # Monday
+        self.assertEqual(get_day_type(monday), "weekday")
+        friday = datetime(2025, 1, 17, 12, 0, 0)  # Friday
+        self.assertEqual(get_day_type(friday), "weekday")
+
+    def test_get_day_type_weekend(self):
+        """Saturday and Sunday should return 'weekend'."""
+        from app import get_day_type
+        saturday = datetime(2025, 1, 18, 12, 0, 0)  # Saturday
+        self.assertEqual(get_day_type(saturday), "weekend")
+        sunday = datetime(2025, 1, 19, 12, 0, 0)  # Sunday
+        self.assertEqual(get_day_type(sunday), "weekend")
+
+    def test_time_aware_prediction_returns_tuple(self):
+        """Time-aware prediction should return a tuple."""
+        from app import get_time_aware_prediction
+        result = get_time_aware_prediction()
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+    def test_time_aware_prediction_with_category(self):
+        """Time-aware prediction with category should return that category."""
+        from app import get_time_aware_prediction
+        prediction, category = get_time_aware_prediction("fortune")
+        self.assertEqual(category, "fortune")
+
+
+class TestPreferenceLearning(unittest.TestCase):
+    """Tests for preference learning functionality."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_get_preferred_categories_empty(self, mock_dir, mock_file):
+        """No rated predictions should return empty preferences."""
+        from app import get_preferred_categories
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            prefs = get_preferred_categories()
+            self.assertEqual(prefs, {})
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_get_preferred_categories_with_ratings(self, mock_dir, mock_file):
+        """Rated predictions should generate preference scores."""
+        from app import get_preferred_categories
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            # Create history with ratings
+            history = [
+                {"prediction": "Test 1", "category": "fortune", "rating": 5},
+                {"prediction": "Test 2", "category": "fortune", "rating": 5},
+                {"prediction": "Test 3", "category": "career", "rating": 3},
+            ]
+            with open(temp_file, "w") as f:
+                json.dump(history, f)
+            
+            prefs = get_preferred_categories()
+            
+            # Fortune should have higher score than career
+            self.assertIn("fortune", prefs)
+            self.assertIn("career", prefs)
+            self.assertGreater(prefs["fortune"], prefs["career"])
+
+    def test_preferred_prediction_returns_tuple(self):
+        """Preferred prediction should return a tuple."""
+        from app import get_preferred_prediction
+        result = get_preferred_prediction()
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+
+class TestEnhancedExport(unittest.TestCase):
+    """Tests for enhanced export functionality."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_export_json(self, mock_dir, mock_file):
+        """JSON export should produce valid JSON output."""
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)), \
+             patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            save_to_history({"prediction": "Test prediction", "category": "fortune"})
+            
+            export_history("json")
+            output = mock_stdout.getvalue()
+            
+            # Should be valid JSON
+            parsed = json.loads(output)
+            self.assertIsInstance(parsed, list)
+            self.assertEqual(len(parsed), 1)
+            self.assertEqual(parsed[0]["category"], "fortune")
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_filter_by_category(self, mock_dir, mock_file):
+        """Export should filter by category."""
+        from app import filter_history
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            history = [
+                {"prediction": "Test 1", "category": "fortune"},
+                {"prediction": "Test 2", "category": "career"},
+                {"prediction": "Test 3", "category": "fortune"},
+            ]
+            
+            filtered = filter_history(history, category="fortune")
+            
+            self.assertEqual(len(filtered), 2)
+            self.assertTrue(all(p["category"] == "fortune" for p in filtered))
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_filter_by_date(self, mock_dir, mock_file):
+        """Export should filter by since date."""
+        from app import filter_history
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            history = [
+                {"prediction": "Old", "category": "fortune", "generated_at": "2024-01-01T12:00:00"},
+                {"prediction": "New", "category": "career", "generated_at": "2025-06-01T12:00:00"},
+            ]
+            
+            filtered = filter_history(history, since="2025-01-01")
+            
+            self.assertEqual(len(filtered), 1)
+            self.assertEqual(filtered[0]["prediction"], "New")
+
+
+class TestPredictTheFutureIteration4(unittest.TestCase):
+    """Tests for predict_the_future with Iteration 4 features."""
+
+    def test_time_aware_adds_time_context(self):
+        """Time-aware prediction should include time_of_day and day_type."""
+        result = predict_the_future(time_aware=True)
+        
+        self.assertIn("time_of_day", result)
+        self.assertIn("day_type", result)
+        self.assertIn(result["time_of_day"], ["morning", "afternoon", "evening", "night"])
+        self.assertIn(result["day_type"], ["weekday", "weekend"])
+
+    def test_regular_prediction_no_time_context(self):
+        """Regular prediction should not include time context."""
+        result = predict_the_future(time_aware=False)
+        
+        self.assertNotIn("time_of_day", result)
+        self.assertNotIn("day_type", result)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-The Future Predictor - Iteration 3
+The Future Predictor - Iteration 4
 
 A playful prediction system that generates fortunes and predictions.
-This iteration adds user feedback, analytics, and export capabilities.
+This iteration adds time-aware predictions, preference learning, and enhanced exports.
 """
 
 import argparse
@@ -16,6 +16,56 @@ from datetime import datetime, timedelta
 from io import StringIO
 from pathlib import Path
 
+
+# Time-of-day specific predictions
+TIME_PREDICTIONS = {
+    "morning": [
+        "Your morning energy will set a positive tone for the day.",
+        "An early start brings unexpected clarity.",
+        "A morning routine change will boost your productivity.",
+        "Breakfast with a twist will spark joy.",
+        "The sunrise brings new possibilities.",
+    ],
+    "afternoon": [
+        "The afternoon sun will bring clarity to a problem.",
+        "A midday break will reveal a new perspective.",
+        "Lunch will lead to an unexpected connection.",
+        "Your afternoon focus will yield great results.",
+        "An afternoon walk will inspire creativity.",
+    ],
+    "evening": [
+        "The evening will bring relaxation and reflection.",
+        "A cozy evening awaits with pleasant surprises.",
+        "Evening conversations will deepen understanding.",
+        "Sunset thoughts will guide tomorrow's decisions.",
+        "The evening wind brings answers you seek.",
+    ],
+    "night": [
+        "Night dreams will offer creative solutions.",
+        "Late-night inspiration will strike unexpectedly.",
+        "The quiet hours bring deep insights.",
+        "Sleep will bring the clarity you need.",
+        "Nighttime reflection reveals hidden truths.",
+    ],
+}
+
+# Day-of-week specific predictions
+DAY_PREDICTIONS = {
+    "weekday": [
+        "Your workweek productivity will reach new heights.",
+        "A colleague will offer valuable help today.",
+        "A weekday challenge will become a learning opportunity.",
+        "Professional connections will strengthen this week.",
+        "Your weekday efforts will be recognized.",
+    ],
+    "weekend": [
+        "The weekend brings time for what matters most.",
+        "Rest and recreation will recharge your spirit.",
+        "Weekend adventures await around the corner.",
+        "Quality time with loved ones brings joy.",
+        "A leisurely pace reveals new perspectives.",
+    ],
+}
 
 # Prediction templates by category
 PREDICTIONS = {
@@ -113,26 +163,206 @@ def get_future_date(days_ahead: int = 1) -> str:
     return future.strftime("%A, %B %d, %Y")
 
 
-def predict_the_future(category: str = None) -> dict:
+def get_time_of_day(dt: datetime = None) -> str:
+    """
+    Get the time of day as a string.
+    
+    Args:
+        dt: Optional datetime. Defaults to now.
+    
+    Returns:
+        One of: 'morning', 'afternoon', 'evening', 'night'
+    """
+    if dt is None:
+        dt = datetime.now()
+    
+    hour = dt.hour
+    if 5 <= hour < 12:
+        return "morning"
+    elif 12 <= hour < 17:
+        return "afternoon"
+    elif 17 <= hour < 21:
+        return "evening"
+    else:
+        return "night"
+
+
+def get_day_type(dt: datetime = None) -> str:
+    """
+    Get the type of day (weekday or weekend).
+    
+    Args:
+        dt: Optional datetime. Defaults to now.
+    
+    Returns:
+        'weekday' or 'weekend'
+    """
+    if dt is None:
+        dt = datetime.now()
+    
+    # weekday() returns 0-4 for Monday-Friday, 5-6 for Saturday-Sunday
+    return "weekend" if dt.weekday() >= 5 else "weekday"
+
+
+def get_time_aware_prediction(category: str = None) -> tuple[str, str]:
+    """
+    Generate a time-aware prediction for the future.
+    
+    This function considers both the time of day and day of week
+    to provide more contextually relevant predictions.
+    
+    Args:
+        category: Optional category. If None, may include time-based predictions.
+    
+    Returns:
+        A tuple of (prediction string, category used).
+    """
+    now = datetime.now()
+    time_of_day = get_time_of_day(now)
+    day_type = get_day_type(now)
+    
+    # If a specific category is requested, use it
+    if category is not None:
+        if category not in PREDICTIONS:
+            available = ", ".join(PREDICTIONS.keys())
+            return f"Unknown category '{category}'. Available: {available}", category
+        return random.choice(PREDICTIONS[category]), category
+    
+    # Create a weighted pool of predictions
+    # Include regular categories with some time-aware predictions mixed in
+    pool = []
+    
+    # Add regular category predictions (70% chance overall)
+    for cat, preds in PREDICTIONS.items():
+        for pred in preds:
+            pool.append((pred, cat))
+    
+    # Add time-of-day predictions (15% chance)
+    for pred in TIME_PREDICTIONS.get(time_of_day, []):
+        pool.append((pred, f"time:{time_of_day}"))
+    
+    # Add day-type predictions (15% chance)
+    for pred in DAY_PREDICTIONS.get(day_type, []):
+        pool.append((pred, f"day:{day_type}"))
+    
+    return random.choice(pool)
+
+
+def get_preferred_categories() -> dict:
+    """
+    Calculate category preferences based on user ratings.
+    
+    Returns:
+        Dictionary mapping categories to preference scores (0-1).
+        Higher scores indicate more preferred categories.
+    """
+    history = load_history()
+    
+    if not history:
+        return {}
+    
+    # Collect ratings by category
+    category_ratings = {}
+    for pred in history:
+        if pred.get("rating") is not None:
+            cat = pred.get("category", "unknown")
+            if cat not in category_ratings:
+                category_ratings[cat] = []
+            category_ratings[cat].append(pred["rating"])
+    
+    if not category_ratings:
+        return {}
+    
+    # Calculate average rating per category
+    category_scores = {}
+    for cat, ratings in category_ratings.items():
+        avg = sum(ratings) / len(ratings)
+        # Normalize to 0-1 range (1-5 rating -> 0-1 score)
+        category_scores[cat] = (avg - 1) / 4
+    
+    return category_scores
+
+
+def get_preferred_prediction(category: str = None) -> tuple[str, str]:
+    """
+    Generate a prediction weighted by user preferences.
+    
+    Higher-rated categories are more likely to be selected.
+    
+    Args:
+        category: Optional category. If specified, preference weighting is skipped.
+    
+    Returns:
+        A tuple of (prediction string, category used).
+    """
+    if category is not None:
+        return get_prediction(category)
+    
+    preferences = get_preferred_categories()
+    
+    if not preferences:
+        # No rated predictions, use regular random selection
+        return get_prediction(None)
+    
+    # Build weighted list of categories
+    weighted_categories = []
+    for cat in PREDICTIONS.keys():
+        # Default weight of 1, increased by preference score
+        weight = 1.0 + preferences.get(cat, 0) * 4  # Boost up to 5x for highly rated
+        weighted_categories.append((cat, weight))
+    
+    # Weighted random selection
+    total_weight = sum(w for _, w in weighted_categories)
+    rand = random.uniform(0, total_weight)
+    cumulative = 0
+    selected_category = list(PREDICTIONS.keys())[0]
+    
+    for cat, weight in weighted_categories:
+        cumulative += weight
+        if rand <= cumulative:
+            selected_category = cat
+            break
+    
+    return get_prediction(selected_category)
+
+
+def predict_the_future(category: str = None, time_aware: bool = False, use_preferences: bool = False) -> dict:
     """
     Generate a complete future prediction.
     
     Args:
         category: Optional prediction category.
+        time_aware: If True, include time-of-day and day-of-week context.
+        use_preferences: If True, weight categories by user ratings.
     
     Returns:
         Dictionary with prediction details.
     """
-    prediction, used_category = get_prediction(category)
+    # Select prediction based on mode
+    if time_aware:
+        prediction, used_category = get_time_aware_prediction(category)
+    elif use_preferences:
+        prediction, used_category = get_preferred_prediction(category)
+    else:
+        prediction, used_category = get_prediction(category)
+    
     future_date = get_future_date(random.randint(1, 7))
     
-    return {
+    result = {
         "prediction": prediction,
         "applies_to": future_date,
         "category": used_category,
         "confidence": f"{random.randint(70, 99)}%",
         "generated_at": datetime.now().isoformat(),
     }
+    
+    # Add time context if time-aware
+    if time_aware:
+        now = datetime.now()
+        result["time_of_day"] = get_time_of_day(now)
+        result["day_type"] = get_day_type(now)
+    
+    return result
 
 
 def load_history() -> list:
@@ -294,6 +524,17 @@ def show_stats() -> None:
             count = rating_counts.get(r, 0)
             bar = "★" * count
             print(f"      {r}: {bar} ({count})")
+        
+        # Preference stats (Iteration 4)
+        preferences = get_preferred_categories()
+        if preferences:
+            print("\n🎯 Category Preferences (based on ratings):")
+            sorted_prefs = sorted(preferences.items(), key=lambda x: -x[1])
+            for cat, score in sorted_prefs:
+                bar_length = int(score * 10)
+                bar = "▓" * bar_length + "░" * (10 - bar_length)
+                print(f"   {cat.title()}: [{bar}] {score:.0%}")
+            print("   (Use --preferred to weight predictions by your preferences)")
     else:
         print("\n⭐ No rated predictions yet. Use --feedback to rate predictions.")
     
@@ -316,17 +557,56 @@ def show_stats() -> None:
     print()
 
 
-def export_history(format_type: str) -> None:
+def filter_history(history: list, category: str = None, since: str = None) -> list:
+    """
+    Filter history by category and/or date.
+    
+    Args:
+        history: The prediction history to filter.
+        category: Optional category to filter by.
+        since: Optional ISO date string to filter predictions after.
+    
+    Returns:
+        Filtered list of predictions.
+    """
+    filtered = history
+    
+    if category:
+        filtered = [p for p in filtered if p.get("category", "").lower() == category.lower()]
+    
+    if since:
+        try:
+            since_dt = datetime.fromisoformat(since)
+            filtered = [
+                p for p in filtered
+                if "generated_at" in p and datetime.fromisoformat(p["generated_at"]) >= since_dt
+            ]
+        except ValueError:
+            print(f"Warning: Invalid date format '{since}'. Use ISO format (YYYY-MM-DD).")
+    
+    return filtered
+
+
+def export_history(format_type: str, category: str = None, since: str = None) -> None:
     """
     Export prediction history to a file.
     
     Args:
-        format_type: The export format ('csv' or 'markdown').
+        format_type: The export format ('csv', 'markdown', or 'json').
+        category: Optional category to filter by.
+        since: Optional ISO date string to filter predictions after.
     """
     history = load_history()
     
     if not history:
         print("No prediction history to export.")
+        return
+    
+    # Apply filters
+    history = filter_history(history, category, since)
+    
+    if not history:
+        print("No predictions match the specified filters.")
         return
     
     if format_type == "csv":
@@ -345,9 +625,16 @@ def export_history(format_type: str) -> None:
             ])
         print(output.getvalue())
     
+    elif format_type == "json":
+        print(json.dumps(history, indent=2))
+    
     elif format_type == "markdown":
         print("# Prediction History\n")
         print(f"*Exported: {datetime.now().strftime('%Y-%m-%d %H:%M')}*\n")
+        if category:
+            print(f"*Filtered by category: {category}*\n")
+        if since:
+            print(f"*Filtered since: {since}*\n")
         print(f"Total predictions: {len(history)}\n")
         print("---\n")
         
@@ -366,7 +653,7 @@ def export_history(format_type: str) -> None:
                     pass
             print()
     else:
-        print(f"Unknown export format: {format_type}. Use 'csv' or 'markdown'.")
+        print(f"Unknown export format: {format_type}. Use 'csv', 'json', or 'markdown'.")
 
 
 def clear_history() -> bool:
@@ -410,11 +697,15 @@ Examples:
   python app.py                      # Random prediction
   python app.py --category fortune   # Fortune prediction
   python app.py --count 3            # Three predictions
+  python app.py --time-aware         # Time-aware prediction (morning/evening, weekday/weekend)
+  python app.py --preferred          # Preference-weighted prediction (based on your ratings)
   python app.py --json               # JSON output
   python app.py --history            # View past predictions
   python app.py --feedback 5 4       # Rate prediction #5 with 4 stars
   python app.py --stats              # View prediction statistics
   python app.py --export csv         # Export history as CSV
+  python app.py --export json --filter fortune   # Export fortune predictions as JSON
+  python app.py --export csv --since 2025-01-01  # Export predictions since date
         """,
     )
     
@@ -479,13 +770,34 @@ Examples:
     )
     parser.add_argument(
         "--export",
-        choices=["csv", "markdown"],
-        help="Export history (csv or markdown)",
+        choices=["csv", "markdown", "json"],
+        help="Export history (csv, markdown, or json)",
     )
     parser.add_argument(
         "--clear-history",
         action="store_true",
         help="Clear prediction history",
+    )
+    # Iteration 4: New arguments
+    parser.add_argument(
+        "--time-aware", "-t",
+        action="store_true",
+        help="Generate time-aware predictions based on time of day and day of week",
+    )
+    parser.add_argument(
+        "--preferred", "-p",
+        action="store_true",
+        help="Weight predictions by your rating preferences",
+    )
+    parser.add_argument(
+        "--filter",
+        metavar="CATEGORY",
+        help="Filter history/export by category",
+    )
+    parser.add_argument(
+        "--since",
+        metavar="DATE",
+        help="Filter history/export by date (ISO format: YYYY-MM-DD)",
     )
     
     return parser.parse_args()
@@ -511,9 +823,9 @@ def main():
         show_stats()
         return
     
-    # Handle export
+    # Handle export (with optional filters)
     if args.export:
-        export_history(args.export)
+        export_history(args.export, category=args.filter, since=args.since)
         return
     
     # Handle history display
@@ -523,7 +835,11 @@ def main():
     
     predictions = []
     for _ in range(args.count):
-        result = predict_the_future(args.category)
+        result = predict_the_future(
+            category=args.category,
+            time_aware=args.time_aware,
+            use_preferences=args.preferred,
+        )
         predictions.append(result)
         
         if not args.no_save:
@@ -543,8 +859,17 @@ def main():
     
     # Standard formatted output
     print("=" * 50)
-    print("  🔮 THE FUTURE PREDICTOR - Iteration 3 🔮")
+    print("  🔮 THE FUTURE PREDICTOR - Iteration 4 🔮")
     print("=" * 50)
+    
+    # Show mode indicators
+    modes = []
+    if args.time_aware:
+        modes.append("⏰ Time-aware")
+    if args.preferred:
+        modes.append("⭐ Preference-weighted")
+    if modes:
+        print(f"  Mode: {', '.join(modes)}")
     
     for i, result in enumerate(predictions, 1):
         if len(predictions) > 1:
@@ -552,6 +877,8 @@ def main():
         print()
         print(f"ID: {result.get('id', 'N/A')}")
         print(f"Category: {result['category'].title()}")
+        if result.get("time_of_day"):
+            print(f"Time context: {result['time_of_day'].title()} ({result.get('day_type', '').title()})")
         print(f"Applies to: {result['applies_to']}")
         print(f"Confidence: {result['confidence']}")
         print()
@@ -562,6 +889,8 @@ def main():
     print("Use --help to see available options.")
     print("Use --history to view past predictions.")
     print("Use --feedback <id> <rating> to rate a prediction.")
+    print("Use --time-aware for time-contextual predictions.")
+    print("Use --preferred for preference-weighted predictions.")
 
 
 if __name__ == "__main__":
