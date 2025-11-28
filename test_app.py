@@ -3,8 +3,10 @@
 
 import json
 import os
+import sys
 import tempfile
 import unittest
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime, timedelta
@@ -15,6 +17,9 @@ from app import (
     predict_the_future,
     load_history,
     save_to_history,
+    add_feedback,
+    show_stats,
+    export_history,
     PREDICTIONS,
     HISTORY_DIR,
     HISTORY_FILE,
@@ -169,6 +174,184 @@ class TestHistory(unittest.TestCase):
             history = load_history()
             self.assertEqual(len(history), 1)
             self.assertEqual(history[0]["prediction"], "Test prediction")
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_save_adds_id(self, mock_dir, mock_file):
+        """Saving prediction should add an ID."""
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            prediction = {
+                "prediction": "Test prediction",
+                "category": "test",
+            }
+            save_to_history(prediction)
+            
+            history = load_history()
+            self.assertEqual(len(history), 1)
+            self.assertIn("id", history[0])
+            self.assertEqual(history[0]["id"], 1)
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_sequential_ids(self, mock_dir, mock_file):
+        """Multiple predictions should have sequential IDs."""
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            for i in range(3):
+                save_to_history({"prediction": f"Test {i}", "category": "test"})
+            
+            history = load_history()
+            self.assertEqual(len(history), 3)
+            self.assertEqual(history[0]["id"], 1)
+            self.assertEqual(history[1]["id"], 2)
+            self.assertEqual(history[2]["id"], 3)
+
+
+class TestFeedback(unittest.TestCase):
+    """Tests for the feedback system."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_add_feedback_valid(self, mock_dir, mock_file):
+        """Adding feedback with valid rating should succeed."""
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            save_to_history({"prediction": "Test prediction", "category": "test"})
+            
+            result = add_feedback(1, 5)
+            self.assertTrue(result)
+            
+            history = load_history()
+            self.assertEqual(history[0]["rating"], 5)
+            self.assertIn("rated_at", history[0])
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_add_feedback_invalid_id(self, mock_dir, mock_file):
+        """Adding feedback for non-existent prediction should fail."""
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            save_to_history({"prediction": "Test prediction", "category": "test"})
+            
+            result = add_feedback(999, 5)
+            self.assertFalse(result)
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_add_feedback_invalid_rating(self, mock_dir, mock_file):
+        """Adding feedback with invalid rating should fail."""
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)):
+            save_to_history({"prediction": "Test prediction", "category": "test"})
+            
+            result_low = add_feedback(1, 0)
+            self.assertFalse(result_low)
+            
+            result_high = add_feedback(1, 6)
+            self.assertFalse(result_high)
+
+
+class TestStats(unittest.TestCase):
+    """Tests for the statistics functionality."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_stats_with_data(self, mock_dir, mock_file):
+        """Stats should display without error when data exists."""
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)), \
+             patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            # Add some predictions
+            save_to_history({"prediction": "Test 1", "category": "fortune", "generated_at": datetime.now().isoformat()})
+            save_to_history({"prediction": "Test 2", "category": "fortune", "generated_at": datetime.now().isoformat()})
+            save_to_history({"prediction": "Test 3", "category": "career", "generated_at": datetime.now().isoformat()})
+            
+            show_stats()
+            output = mock_stdout.getvalue()
+            
+            self.assertIn("Total predictions: 3", output)
+            self.assertIn("Fortune:", output)
+            self.assertIn("Career:", output)
+
+
+class TestExport(unittest.TestCase):
+    """Tests for the export functionality."""
+
+    def setUp(self):
+        """Set up a temporary directory for tests."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files."""
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_export_csv(self, mock_dir, mock_file):
+        """CSV export should produce valid CSV output."""
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)), \
+             patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            save_to_history({"prediction": "Test prediction", "category": "fortune"})
+            
+            export_history("csv")
+            output = mock_stdout.getvalue()
+            
+            self.assertIn("id,category,prediction", output)
+            self.assertIn("fortune", output)
+            self.assertIn("Test prediction", output)
+
+    @patch("app.HISTORY_FILE")
+    @patch("app.HISTORY_DIR")
+    def test_export_markdown(self, mock_dir, mock_file):
+        """Markdown export should produce valid markdown output."""
+        temp_file = Path(self.temp_dir) / "history.json"
+        
+        with patch("app.HISTORY_FILE", temp_file), \
+             patch("app.HISTORY_DIR", Path(self.temp_dir)), \
+             patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            save_to_history({"prediction": "Test prediction", "category": "fortune"})
+            
+            export_history("markdown")
+            output = mock_stdout.getvalue()
+            
+            self.assertIn("# Prediction History", output)
+            self.assertIn("## Fortune", output)
+            self.assertIn("Test prediction", output)
 
 
 if __name__ == "__main__":

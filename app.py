@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 """
-The Future Predictor - Iteration 2
+The Future Predictor - Iteration 3
 
 A playful prediction system that generates fortunes and predictions.
-This iteration adds CLI arguments, prediction history, and more categories.
+This iteration adds user feedback, analytics, and export capabilities.
 """
 
 import argparse
+import csv
 import json
 import os
 import random
+import sys
 from datetime import datetime, timedelta
+from io import StringIO
 from pathlib import Path
 
 
@@ -159,6 +162,16 @@ def save_to_history(prediction: dict) -> None:
     HISTORY_DIR.mkdir(parents=True, exist_ok=True)
     
     history = load_history()
+    
+    # Assign an ID if not present
+    if "id" not in prediction:
+        # Find the next available ID
+        max_id = 0
+        for p in history:
+            if "id" in p and isinstance(p["id"], int):
+                max_id = max(max_id, p["id"])
+        prediction["id"] = max_id + 1
+    
     history.append(prediction)
     
     # Keep only the last 100 predictions
@@ -168,12 +181,13 @@ def save_to_history(prediction: dict) -> None:
         json.dump(history, f, indent=2)
 
 
-def display_history(count: int = 10) -> None:
+def display_history(count: int = 10, show_rated_only: bool = False) -> None:
     """
     Display recent prediction history.
     
     Args:
         count: Number of recent predictions to display.
+        show_rated_only: If True, only show predictions that have been rated.
     """
     history = load_history()
     
@@ -181,11 +195,21 @@ def display_history(count: int = 10) -> None:
         print("No prediction history found.")
         return
     
+    if show_rated_only:
+        history = [p for p in history if p.get("rating") is not None]
+        if not history:
+            print("No rated predictions found. Use --feedback to rate predictions.")
+            return
+    
     recent = history[-count:]
-    print(f"\n📜 Last {len(recent)} prediction(s):\n")
+    title = "rated prediction(s)" if show_rated_only else "prediction(s)"
+    print(f"\n📜 Last {len(recent)} {title}:\n")
     
     for i, pred in enumerate(reversed(recent), 1):
-        print(f"{i}. [{pred.get('category', 'unknown').title()}] {pred['prediction']}")
+        rating_str = ""
+        if pred.get("rating") is not None:
+            rating_str = f" ⭐{pred['rating']}/5"
+        print(f"{i}. [ID:{pred.get('id', 'N/A')}] [{pred.get('category', 'unknown').title()}]{rating_str} {pred['prediction']}")
         if "generated_at" in pred:
             # Parse and format the timestamp
             try:
@@ -194,6 +218,186 @@ def display_history(count: int = 10) -> None:
             except (ValueError, TypeError):
                 pass
         print()
+
+
+def add_feedback(prediction_id: int, rating: int) -> bool:
+    """
+    Add a rating to a prediction in history.
+    
+    Args:
+        prediction_id: The ID of the prediction to rate.
+        rating: The rating (1-5).
+    
+    Returns:
+        True if successful, False otherwise.
+    """
+    if rating < 1 or rating > 5:
+        print(f"Error: Rating must be between 1 and 5, got {rating}")
+        return False
+    
+    history = load_history()
+    
+    for pred in history:
+        if pred.get("id") == prediction_id:
+            pred["rating"] = rating
+            pred["rated_at"] = datetime.now().isoformat()
+            
+            # Save updated history
+            with open(HISTORY_FILE, "w") as f:
+                json.dump(history, f, indent=2)
+            
+            print(f"✅ Rated prediction {prediction_id} with {rating}/5 stars")
+            print(f"   \"{pred['prediction']}\"")
+            return True
+    
+    print(f"Error: Prediction with ID {prediction_id} not found.")
+    print("Use --history to see available predictions and their IDs.")
+    return False
+
+
+def show_stats() -> None:
+    """Display prediction statistics."""
+    history = load_history()
+    
+    if not history:
+        print("No prediction history found.")
+        return
+    
+    print("\n📊 Prediction Statistics\n")
+    print(f"Total predictions: {len(history)}")
+    
+    # Count by category
+    category_counts = {}
+    for pred in history:
+        cat = pred.get("category", "unknown")
+        category_counts[cat] = category_counts.get(cat, 0) + 1
+    
+    print("\n📂 Predictions by category:")
+    for cat, count in sorted(category_counts.items(), key=lambda x: -x[1]):
+        pct = (count / len(history)) * 100
+        print(f"   {cat.title()}: {count} ({pct:.1f}%)")
+    
+    # Rated predictions
+    rated = [p for p in history if p.get("rating") is not None]
+    if rated:
+        avg_rating = sum(p["rating"] for p in rated) / len(rated)
+        print(f"\n⭐ Rated predictions: {len(rated)}")
+        print(f"   Average rating: {avg_rating:.1f}/5")
+        
+        # Rating distribution
+        rating_counts = {}
+        for p in rated:
+            r = p["rating"]
+            rating_counts[r] = rating_counts.get(r, 0) + 1
+        print("   Rating distribution:")
+        for r in range(5, 0, -1):
+            count = rating_counts.get(r, 0)
+            bar = "★" * count
+            print(f"      {r}: {bar} ({count})")
+    else:
+        print("\n⭐ No rated predictions yet. Use --feedback to rate predictions.")
+    
+    # Time stats
+    dates = []
+    for pred in history:
+        try:
+            dt = datetime.fromisoformat(pred.get("generated_at", ""))
+            dates.append(dt)
+        except (ValueError, TypeError):
+            pass
+    
+    if dates:
+        oldest = min(dates)
+        newest = max(dates)
+        print(f"\n📅 Date range:")
+        print(f"   First: {oldest.strftime('%Y-%m-%d %H:%M')}")
+        print(f"   Last:  {newest.strftime('%Y-%m-%d %H:%M')}")
+    
+    print()
+
+
+def export_history(format_type: str) -> None:
+    """
+    Export prediction history to a file.
+    
+    Args:
+        format_type: The export format ('csv' or 'markdown').
+    """
+    history = load_history()
+    
+    if not history:
+        print("No prediction history to export.")
+        return
+    
+    if format_type == "csv":
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["id", "category", "prediction", "applies_to", "confidence", "generated_at", "rating"])
+        for pred in history:
+            writer.writerow([
+                pred.get("id", ""),
+                pred.get("category", ""),
+                pred.get("prediction", ""),
+                pred.get("applies_to", ""),
+                pred.get("confidence", ""),
+                pred.get("generated_at", ""),
+                pred.get("rating", ""),
+            ])
+        print(output.getvalue())
+    
+    elif format_type == "markdown":
+        print("# Prediction History\n")
+        print(f"*Exported: {datetime.now().strftime('%Y-%m-%d %H:%M')}*\n")
+        print(f"Total predictions: {len(history)}\n")
+        print("---\n")
+        
+        for pred in reversed(history):
+            rating_str = f" (⭐{pred['rating']}/5)" if pred.get("rating") else ""
+            print(f"## {pred.get('category', 'unknown').title()}{rating_str}\n")
+            print(f"> {pred['prediction']}\n")
+            print(f"- **ID**: {pred.get('id', 'N/A')}")
+            print(f"- **Applies to**: {pred.get('applies_to', 'N/A')}")
+            print(f"- **Confidence**: {pred.get('confidence', 'N/A')}")
+            if "generated_at" in pred:
+                try:
+                    dt = datetime.fromisoformat(pred["generated_at"])
+                    print(f"- **Generated**: {dt.strftime('%Y-%m-%d %H:%M')}")
+                except (ValueError, TypeError):
+                    pass
+            print()
+    else:
+        print(f"Unknown export format: {format_type}. Use 'csv' or 'markdown'.")
+
+
+def clear_history() -> bool:
+    """
+    Clear prediction history after confirmation.
+    
+    Returns:
+        True if history was cleared, False otherwise.
+    """
+    history = load_history()
+    
+    if not history:
+        print("No prediction history to clear.")
+        return False
+    
+    print(f"⚠️  This will delete {len(history)} prediction(s) from history.")
+    print("This action cannot be undone.")
+    
+    try:
+        response = input("Are you sure? (yes/no): ").strip().lower()
+    except EOFError:
+        print("\nOperation cancelled.")
+        return False
+    
+    if response == "yes":
+        HISTORY_FILE.unlink(missing_ok=True)
+        print("✅ History cleared successfully.")
+        return True
+    else:
+        print("Operation cancelled.")
+        return False
 
 
 def parse_args():
@@ -208,6 +412,9 @@ Examples:
   python app.py --count 3            # Three predictions
   python app.py --json               # JSON output
   python app.py --history            # View past predictions
+  python app.py --feedback 5 4       # Rate prediction #5 with 4 stars
+  python app.py --stats              # View prediction statistics
+  python app.py --export csv         # Export history as CSV
         """,
     )
     
@@ -252,6 +459,34 @@ Examples:
         action="store_true",
         help="Don't save prediction to history",
     )
+    # Iteration 3: New arguments
+    parser.add_argument(
+        "--feedback",
+        nargs=2,
+        metavar=("ID", "RATING"),
+        type=int,
+        help="Rate a prediction by ID (rating: 1-5)",
+    )
+    parser.add_argument(
+        "--show-rated",
+        action="store_true",
+        help="Show only rated predictions from history",
+    )
+    parser.add_argument(
+        "--stats",
+        action="store_true",
+        help="Show prediction statistics",
+    )
+    parser.add_argument(
+        "--export",
+        choices=["csv", "markdown"],
+        help="Export history (csv or markdown)",
+    )
+    parser.add_argument(
+        "--clear-history",
+        action="store_true",
+        help="Clear prediction history",
+    )
     
     return parser.parse_args()
 
@@ -260,9 +495,30 @@ def main():
     """Main entry point for the future predictor."""
     args = parse_args()
     
+    # Handle clear history (must be first as it modifies history)
+    if args.clear_history:
+        clear_history()
+        return
+    
+    # Handle feedback
+    if args.feedback:
+        pred_id, rating = args.feedback
+        add_feedback(pred_id, rating)
+        return
+    
+    # Handle stats display
+    if args.stats:
+        show_stats()
+        return
+    
+    # Handle export
+    if args.export:
+        export_history(args.export)
+        return
+    
     # Handle history display
-    if args.history:
-        display_history()
+    if args.history or args.show_rated:
+        display_history(show_rated_only=args.show_rated)
         return
     
     predictions = []
@@ -287,13 +543,14 @@ def main():
     
     # Standard formatted output
     print("=" * 50)
-    print("  🔮 THE FUTURE PREDICTOR - Iteration 2 🔮")
+    print("  🔮 THE FUTURE PREDICTOR - Iteration 3 🔮")
     print("=" * 50)
     
     for i, result in enumerate(predictions, 1):
         if len(predictions) > 1:
             print(f"\n--- Prediction {i} ---")
         print()
+        print(f"ID: {result.get('id', 'N/A')}")
         print(f"Category: {result['category'].title()}")
         print(f"Applies to: {result['applies_to']}")
         print(f"Confidence: {result['confidence']}")
@@ -304,6 +561,7 @@ def main():
     print("-" * 50)
     print("Use --help to see available options.")
     print("Use --history to view past predictions.")
+    print("Use --feedback <id> <rating> to rate a prediction.")
 
 
 if __name__ == "__main__":
