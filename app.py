@@ -353,30 +353,36 @@ def get_smart_prediction(category: str = None) -> tuple[str, str]:
     
     preferences = get_preferred_categories()
     
-    # Build a weighted pool of predictions
-    pool = []
+    # Build weighted list for efficient selection (without duplicating entries)
+    weighted_items = []
     
     # Add regular category predictions with preference weighting
     for cat, preds in PREDICTIONS.items():
-        # Apply preference weight (1.0 to 5.0 based on rating)
-        pref_weight = 1.0 + preferences.get(cat, 0) * 4
+        # Apply preference weight (1.0 to 5.0 based on rating), capped at 5.0
+        pref_weight = min(1.0 + preferences.get(cat, 0) * 4, 5.0)
         for pred in preds:
-            # Add prediction multiple times based on weight
-            # Use floor to avoid too much variation
-            for _ in range(int(pref_weight)):
-                pool.append((pred, cat))
+            weighted_items.append((pred, cat, pref_weight))
     
-    # Add time-of-day predictions with moderate weight
+    # Add time-of-day predictions with moderate weight (2.0 for relevance)
     for pred in TIME_PREDICTIONS.get(time_of_day, []):
-        pool.append((pred, f"time:{time_of_day}"))
-        pool.append((pred, f"time:{time_of_day}"))  # Double weight for relevance
+        weighted_items.append((pred, f"time:{time_of_day}", 2.0))
     
-    # Add day-type predictions with moderate weight
+    # Add day-type predictions with moderate weight (2.0 for relevance)
     for pred in DAY_PREDICTIONS.get(day_type, []):
-        pool.append((pred, f"day:{day_type}"))
-        pool.append((pred, f"day:{day_type}"))  # Double weight for relevance
+        weighted_items.append((pred, f"day:{day_type}", 2.0))
     
-    return random.choice(pool)
+    # Weighted random selection using cumulative weights
+    total_weight = sum(w for _, _, w in weighted_items)
+    rand = random.uniform(0, total_weight)
+    cumulative = 0
+    
+    for pred, cat, weight in weighted_items:
+        cumulative += weight
+        if rand <= cumulative:
+            return pred, cat
+    
+    # Fallback (should not reach here)
+    return weighted_items[-1][0], weighted_items[-1][1]
 
 
 def predict_the_future(category: str = None, time_aware: bool = False, use_preferences: bool = False, smart: bool = False) -> dict:
@@ -975,6 +981,8 @@ def main():
     print("=" * 50)
     
     # Show mode indicators
+    # Note: Smart mode already includes both time-aware and preference features,
+    # so we don't show those separately when smart mode is active
     modes = []
     if args.smart:
         modes.append("🧠 Smart")

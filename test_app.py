@@ -3,6 +3,7 @@
 
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -152,7 +153,7 @@ class TestHistory(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -229,7 +230,7 @@ class TestFeedback(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -288,7 +289,7 @@ class TestStats(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -322,7 +323,7 @@ class TestExport(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -431,7 +432,7 @@ class TestPreferenceLearning(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -488,7 +489,7 @@ class TestEnhancedExport(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("app.HISTORY_FILE")
@@ -581,7 +582,7 @@ class TestSmartMode(unittest.TestCase):
 
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
+        # shutil already imported at top
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_smart_prediction_returns_tuple(self):
