@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-The Future Predictor - Iteration 9
+The Future Predictor - Iteration 10
 
 A playful prediction system that generates fortunes and predictions.
-This iteration adds custom themes to let you create your own prediction sets.
+This iteration adds a web frontend and enhanced API endpoints.
 """
 
 import argparse
@@ -1817,7 +1817,7 @@ Examples:
   python app.py --theme zodiac -c aries   # Zodiac prediction for Aries
   python app.py --theme spring       # Seasonal spring prediction
   python app.py --share --copy       # Share and copy to clipboard
-  python app.py --api                # Start the REST API server
+  python app.py --api                # Start the REST API with web frontend
   python app.py --api --port 3000    # Start API on custom port
   python app.py --remind             # Set reminder for prediction's apply date
   python app.py --remind 2025-12-25  # Set reminder for specific date
@@ -1829,6 +1829,9 @@ Examples:
   python app.py --delete-theme my_theme  # Delete a custom theme
   python app.py --export-theme zodiac    # Export theme to JSON
   python app.py --import-theme file.json # Import theme from JSON file
+
+Web Frontend (NEW in Iteration 10):
+  Start the API server with --api, then visit http://localhost:8000/app
         """,
     )
     
@@ -2147,7 +2150,7 @@ def main():
     
     # Standard formatted output
     print("=" * 50)
-    print("  🔮 THE FUTURE PREDICTOR - Iteration 9 🔮")
+    print("  🔮 THE FUTURE PREDICTOR - Iteration 10 🔮")
     print("=" * 50)
     
     # Show mode indicators
@@ -2193,8 +2196,7 @@ def main():
     print("Use --help to see available options.")
     print("Use --history to view past predictions.")
     print("Use --feedback <id> <rating> to rate a prediction.")
-    print("Use --list-themes to see all themes.")
-    print("Use --add-theme to create a custom theme.")
+    print("Use --api to start the web frontend.")
 
 
 def create_api():
@@ -2205,7 +2207,9 @@ def create_api():
         FastAPI application instance.
     """
     try:
-        from fastapi import FastAPI, Query, HTTPException
+        from fastapi import FastAPI, Query, HTTPException, Body
+        from fastapi.staticfiles import StaticFiles
+        from fastapi.responses import FileResponse
         from pydantic import BaseModel
     except ImportError:
         raise ImportError("FastAPI is required for the API. Install with: pip install fastapi uvicorn")
@@ -2213,7 +2217,7 @@ def create_api():
     api = FastAPI(
         title="The Future Predictor API",
         description="🔮 A playful prediction system that generates fortunes and predictions.",
-        version="Iteration 9",
+        version="Iteration 10",
     )
     
     class PredictionResponse(BaseModel):
@@ -2233,10 +2237,38 @@ def create_api():
         status: str
         version: str
     
+    class ReminderRequest(BaseModel):
+        """Request model for creating reminders."""
+        prediction_id: int | None = None
+        prediction: str
+        category: str
+        remind_date: str
+    
+    class ReminderResponse(BaseModel):
+        """Response model for reminders."""
+        reminder_id: int
+        prediction_id: int | None = None
+        prediction: str
+        category: str
+        remind_date: str
+        created_at: str
+        acknowledged: bool
+        acknowledged_at: str | None = None
+    
+    class FeedbackRequest(BaseModel):
+        """Request model for prediction feedback."""
+        prediction_id: int
+        rating: int
+    
+    class FeedbackResponse(BaseModel):
+        """Response model for feedback."""
+        success: bool
+        message: str
+    
     @api.get("/", response_model=HealthResponse, tags=["Health"])
     def health_check():
         """Check if the API is running."""
-        return {"status": "ok", "version": "Iteration 9"}
+        return {"status": "ok", "version": "Iteration 10"}
     
     @api.get("/predict", response_model=PredictionResponse, tags=["Predictions"])
     def get_prediction_endpoint(
@@ -2255,11 +2287,12 @@ def create_api():
         - **smart**: Use smart mode combining time-awareness and preferences
         - **save**: Whether to save the prediction to history (default: True)
         """
-        # Validate theme
-        if theme and theme not in THEMES:
+        # Validate theme - check both built-in and custom themes
+        all_themes = get_all_themes()
+        if theme and theme not in all_themes:
             raise HTTPException(
                 status_code=400,
-                detail=f"Unknown theme '{theme}'. Available: {', '.join(THEMES.keys())}"
+                detail=f"Unknown theme '{theme}'. Available: {', '.join(all_themes.keys())}"
             )
         
         # Validate category
@@ -2298,15 +2331,16 @@ def create_api():
         return predictions
     
     @api.get("/themes", tags=["Information"])
-    def list_themes():
+    def api_list_themes():
         """List all available prediction themes and their categories."""
+        all_themes = get_all_themes()
         return {
             theme: list(categories.keys())
-            for theme, categories in THEMES.items()
+            for theme, categories in all_themes.items()
         }
     
     @api.get("/categories", tags=["Information"])
-    def list_categories():
+    def api_list_categories():
         """List all available prediction categories."""
         return list(PREDICTIONS.keys())
     
@@ -2356,6 +2390,83 @@ def create_api():
             "ratings": rating_stats,
         }
     
+    # Reminder endpoints (Iteration 10)
+    @api.get("/reminders", response_model=list[ReminderResponse], tags=["Reminders"])
+    def api_get_reminders(
+        show_all: bool = Query(False, description="Include acknowledged reminders"),
+    ):
+        """Get all reminders."""
+        reminders = load_reminders()
+        
+        if not show_all:
+            reminders = [r for r in reminders if not r.get("acknowledged", False)]
+        
+        return reminders
+    
+    @api.post("/reminders", response_model=ReminderResponse, tags=["Reminders"])
+    def api_create_reminder(request: ReminderRequest):
+        """Create a new reminder for a prediction."""
+        prediction = {
+            "id": request.prediction_id,
+            "prediction": request.prediction,
+            "category": request.category,
+            "applies_to": "",  # Not used when remind_date is provided
+        }
+        
+        reminder = save_reminder(prediction, request.remind_date)
+        return reminder
+    
+    @api.post("/reminders/{reminder_id}/acknowledge", tags=["Reminders"])
+    def api_acknowledge_reminder(reminder_id: int):
+        """Acknowledge (dismiss) a reminder."""
+        reminders = load_reminders()
+        
+        for reminder in reminders:
+            if reminder.get("reminder_id") == reminder_id:
+                if reminder.get("acknowledged", False):
+                    raise HTTPException(status_code=400, detail="Reminder already acknowledged")
+                
+                reminder["acknowledged"] = True
+                reminder["acknowledged_at"] = datetime.now().isoformat()
+                
+                with open(REMINDERS_FILE, "w") as f:
+                    json.dump(reminders, f, indent=2)
+                
+                return {"success": True, "message": f"Reminder {reminder_id} acknowledged"}
+        
+        raise HTTPException(status_code=404, detail=f"Reminder {reminder_id} not found")
+    
+    # Feedback endpoint (Iteration 10)
+    @api.post("/feedback", response_model=FeedbackResponse, tags=["Feedback"])
+    def api_add_feedback(request: FeedbackRequest):
+        """Add a rating to a prediction."""
+        if request.rating < 1 or request.rating > 5:
+            raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+        
+        history = load_history()
+        
+        for pred in history:
+            if pred.get("id") == request.prediction_id:
+                pred["rating"] = request.rating
+                pred["rated_at"] = datetime.now().isoformat()
+                
+                with open(HISTORY_FILE, "w") as f:
+                    json.dump(history, f, indent=2)
+                
+                return {"success": True, "message": f"Rated prediction {request.prediction_id} with {request.rating}/5 stars"}
+        
+        raise HTTPException(status_code=404, detail=f"Prediction {request.prediction_id} not found")
+    
+    # Static files and web frontend
+    static_dir = Path(__file__).parent / "static"
+    if static_dir.exists():
+        api.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+        
+        @api.get("/app", include_in_schema=False)
+        def serve_frontend():
+            """Serve the web frontend."""
+            return FileResponse(str(static_dir / "index.html"))
+    
     return api
 
 
@@ -2379,6 +2490,8 @@ def start_api(port: int = 8000):
     
     api = create_api()
     print(f"🔮 Starting The Future Predictor API on http://localhost:{port}")
+    print(f"📱 Web Frontend: http://localhost:{port}/app")
+    print(f"📚 API Docs: http://localhost:{port}/docs")
     print("Press Ctrl+C to stop the server.")
     uvicorn.run(api, host="127.0.0.1", port=port)
 
