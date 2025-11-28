@@ -11,6 +11,7 @@ import csv
 import json
 import os
 import random
+import re
 import sys
 from datetime import datetime, timedelta
 from io import StringIO
@@ -477,8 +478,8 @@ def add_custom_theme(name: str, categories: dict) -> bool:
         print("Error: Theme name cannot be empty.")
         return False
     
-    # Validate name (alphanumeric and underscores only)
-    if not name.replace("_", "").replace("-", "").isalnum():
+    # Validate name (alphanumeric, underscores, and hyphens only)
+    if not re.match(r'^[a-zA-Z0-9_-]+$', name):
         print("Error: Theme name can only contain letters, numbers, underscores, and hyphens.")
         return False
     
