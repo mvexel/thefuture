@@ -29,7 +29,10 @@ from app import (
     get_preferred_prediction,
     get_smart_prediction,
     format_for_sharing,
+    get_themed_prediction,
+    copy_to_clipboard,
     PREDICTIONS,
+    THEMES,
     HISTORY_DIR,
     HISTORY_FILE,
 )
@@ -694,6 +697,84 @@ class TestSocialSharing(unittest.TestCase):
         result_text = format_for_sharing(prediction, "text")
         
         self.assertEqual(result_default, result_text)
+
+
+# Iteration 6 Tests
+class TestThemes(unittest.TestCase):
+    """Tests for prediction themes functionality."""
+
+    def test_themes_exist(self):
+        """All expected themes should exist."""
+        from app import THEMES
+        expected_themes = ["motivational", "holiday", "spooky", "adventure"]
+        for theme in expected_themes:
+            self.assertIn(theme, THEMES)
+            self.assertGreater(len(THEMES[theme]), 0)
+
+    def test_themed_prediction_returns_tuple(self):
+        """Themed prediction should return a tuple."""
+        from app import get_themed_prediction
+        result = get_themed_prediction("motivational")
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+    def test_themed_prediction_with_category(self):
+        """Themed prediction with category should return that category."""
+        from app import get_themed_prediction, THEMES
+        # Test with a category that exists in the theme
+        prediction, category = get_themed_prediction("motivational", "fortune")
+        self.assertEqual(category, "fortune")
+        self.assertIn(prediction, THEMES["motivational"]["fortune"])
+
+    def test_themed_prediction_invalid_theme(self):
+        """Invalid theme should return error message."""
+        from app import get_themed_prediction
+        prediction, category = get_themed_prediction("nonexistent")
+        self.assertIn("Unknown theme", prediction)
+        self.assertEqual(category, "nonexistent")
+
+    def test_themed_prediction_invalid_category_for_theme(self):
+        """Invalid category for theme should return error message."""
+        from app import get_themed_prediction
+        # "weather" exists in spooky but not in motivational
+        prediction, category = get_themed_prediction("motivational", "weather")
+        self.assertIn("not available", prediction)
+
+    def test_predict_the_future_with_theme(self):
+        """predict_the_future should work with theme parameter."""
+        from app import predict_the_future
+        result = predict_the_future(theme="adventure")
+        
+        self.assertIn("theme", result)
+        self.assertEqual(result["theme"], "adventure")
+        self.assertIn("prediction", result)
+        self.assertIn("category", result)
+
+    def test_predict_the_future_theme_with_category(self):
+        """predict_the_future should work with theme and category."""
+        from app import predict_the_future, THEMES
+        result = predict_the_future(theme="holiday", category="relationship")
+        
+        self.assertEqual(result["theme"], "holiday")
+        self.assertEqual(result["category"], "relationship")
+        self.assertIn(result["prediction"], THEMES["holiday"]["relationship"])
+
+
+class TestCopyToClipboard(unittest.TestCase):
+    """Tests for copy to clipboard functionality."""
+
+    def test_copy_to_clipboard_returns_bool(self):
+        """copy_to_clipboard should return a boolean."""
+        from app import copy_to_clipboard
+        result = copy_to_clipboard("test text")
+        self.assertIsInstance(result, bool)
+
+    def test_copy_to_clipboard_handles_unicode(self):
+        """copy_to_clipboard should handle unicode text."""
+        from app import copy_to_clipboard
+        # Should not raise an exception
+        result = copy_to_clipboard("🔮 Test prediction with emojis 🌟")
+        self.assertIsInstance(result, bool)
 
 
 if __name__ == "__main__":
