@@ -216,11 +216,21 @@ Examples:
         choices=list(PREDICTIONS.keys()),
         help="Category of prediction",
     )
+
+    def positive_int(value):
+        """Validate that count is a positive integer."""
+        ivalue = int(value)
+        if ivalue < 1:
+            raise argparse.ArgumentTypeError(f"{value} is not a positive integer")
+        if ivalue > 100:
+            raise argparse.ArgumentTypeError(f"{value} exceeds maximum of 100")
+        return ivalue
+
     parser.add_argument(
         "--count", "-n",
-        type=int,
+        type=positive_int,
         default=1,
-        help="Number of predictions to generate (default: 1)",
+        help="Number of predictions to generate (default: 1, max: 100)",
     )
     parser.add_argument(
         "--json", "-j",
